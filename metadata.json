@@ -1,0 +1,6 @@
+{
+  "name": "Slang It - German",
+  "description": "Engaging gamified German slang learning app and multiplayer party game with cartoon animations, voice recognition, dialect battles, and comprehensive slang lexicon.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

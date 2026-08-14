@@ -1,0 +1,172 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-display: 'Fredoka', 'Outfit', sans-serif;
+    --font-body: 'Plus Jakarta Sans', sans-serif;
+
+    /* Artistic Flair Neon Palette */
+    --color-flair-pink: #FF71CE;
+    --color-flair-green: #05FFA1;
+    --color-flair-cyan: #01CDFE;
+    --color-flair-yellow: #FFFB96;
+    --color-flair-purple: #B967FF;
+  }
+
+  body {
+    font-family: var(--font-body);
+    background-color: #FF71CE;
+    background-image: radial-gradient(#05FFA1 2px, transparent 2px);
+    background-size: 32px 32px;
+    color: #000000;
+  }
+
+  h1, h2, h3, h4, .font-cartoon {
+    font-family: var(--font-display);
+    letter-spacing: -0.025em;
+  }
+}
+
+/* Artistic Flair Card Styling (Solid Black Borders + Hard Offset Shadows) */
+.cartoon-card {
+  border: 3.5px solid #000000;
+  box-shadow: 4px 4px 0px 0px #000000;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cartoon-card:hover {
+  box-shadow: 5px 5px 0px 0px #000000;
+}
+
+.cartoon-card-lg {
+  border: 4px solid #000000;
+  box-shadow: 6px 6px 0px 0px #000000;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cartoon-card-sm {
+  border: 2.5px solid #000000;
+  box-shadow: 3px 3px 0px 0px #000000;
+}
+
+/* Artistic Flair Interactive Buttons */
+.cartoon-btn {
+  border: 3px solid #000000;
+  box-shadow: 4px 4px 0px 0px #000000;
+  transition: all 0.1s ease;
+  user-select: none;
+  font-weight: 900;
+}
+
+.cartoon-btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 5px 5px 0px 0px #000000;
+}
+
+.cartoon-btn:active {
+  transform: translate(3px, 3px);
+  box-shadow: 1px 1px 0px 0px #000000;
+}
+
+.cartoon-btn-sm {
+  border: 2.5px solid #000000;
+  box-shadow: 3px 3px 0px 0px #000000;
+  transition: all 0.1s ease;
+  user-select: none;
+  font-weight: 800;
+}
+
+.cartoon-btn-sm:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px 0px #000000;
+}
+
+.cartoon-btn-sm:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px 0px #000000;
+}
+
+/* Comic Speech Bubble with Artistic Flair Outlines */
+.speech-bubble {
+  position: relative;
+  background: #ffffff;
+  border: 3.5px solid #000000;
+  border-radius: 1.25rem;
+  box-shadow: 4px 4px 0px #000000;
+}
+
+.speech-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -15px;
+  left: 28px;
+  border-width: 15px 13px 0;
+  border-style: solid;
+  border-color: #000000 transparent;
+  display: block;
+  width: 0;
+}
+
+.speech-bubble::before {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 31px;
+  border-width: 12px 10px 0;
+  border-style: solid;
+  border-color: #ffffff transparent;
+  display: block;
+  width: 0;
+  z-index: 1;
+}
+
+/* Custom bounce / pulse animations */
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+
+@keyframes pop {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  60% { transform: scale(1.04); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-wiggle {
+  animation: wiggle 0.6s ease-in-out infinite;
+}
+
+.animate-pop {
+  animation: pop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Pop Grid / Pattern container helper */
+.artistic-bg-pattern {
+  background-color: #FF71CE;
+  background-image: radial-gradient(#05FFA1 2px, transparent 2px);
+  background-size: 28px 28px;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FFFB96;
+  border: 2px solid #000000;
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #01CDFE;
+  border-radius: 6px;
+  border: 2px solid #000000;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #B967FF;
+}
+
+
