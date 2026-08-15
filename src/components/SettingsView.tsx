@@ -21,12 +21,26 @@ import {
   RotateCcw,
   Sliders,
   BarChart2,
-  Globe
+  Globe,
+  Cloud,
+  LogOut,
+  LogIn
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 export const SettingsView: React.FC = () => {
-  const { profile, updateProfile, stats, setShowPaymentModal, setSystemLanguage } = useGame();
+  const {
+    profile,
+    updateProfile,
+    stats,
+    setShowPaymentModal,
+    setSystemLanguage,
+    user,
+    openAuthModal,
+    logoutUser,
+    refreshCloudSync,
+    cloudSyncStatus,
+  } = useGame();
   const { t } = useTranslation(profile.systemLanguage);
 
   const [name, setName] = useState(profile.name);
@@ -34,6 +48,7 @@ export const SettingsView: React.FC = () => {
   const [germanLevel, setGermanLevel] = useState(profile.germanLevel);
   const [preferredRegion, setPreferredRegion] = useState(profile.preferredRegion);
   const [isSavedToast, setIsSavedToast] = useState(false);
+  const [isSyncToast, setIsSyncToast] = useState(false);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,6 +152,111 @@ export const SettingsView: React.FC = () => {
           <span className="text-2xl font-black text-black font-cartoon block">{profile.learnedWordIds.length}</span>
           <span className="text-[11px] font-bold text-black/80">Learned Words</span>
         </div>
+      </div>
+
+      {/* Supabase Cloud Account & Sync Section */}
+      <div className="cartoon-card bg-white rounded-3xl p-6 shadow-[6px_6px_0px_#000000] border-4 border-black">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-[#01CDFE] border-2 border-black flex items-center justify-center text-lg shadow-[2px_2px_0px_#000000]">
+              ☁️
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-black font-cartoon italic">
+                Supabase Cloud Sync & Account
+              </h3>
+              <p className="text-xs font-bold text-black/70">
+                {user
+                  ? `Signed in as ${user.email}`
+                  : 'Save your points, streaks, and favorites across Web & Android!'}
+              </p>
+            </div>
+          </div>
+
+          {/* Status Badge */}
+          <div className="flex items-center gap-2">
+            <span
+              className={`px-3 py-1 rounded-xl text-xs font-black font-cartoon border-2 border-black shadow-[2px_2px_0px_#000000] ${
+                user
+                  ? 'bg-[#05FFA1] text-black'
+                  : 'bg-[#FFFB96] text-black'
+              }`}
+            >
+              {user ? 'Cloud Synced ✅' : 'Guest Mode (Local)'}
+            </span>
+          </div>
+        </div>
+
+        {user ? (
+          <div className="bg-[#05FFA1]/20 border-2 border-black rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-[2px_2px_0px_#000000]">
+            <div className="text-xs font-bold text-black space-y-1 text-center sm:text-left">
+              <div className="flex items-center gap-1.5 justify-center sm:justify-start">
+                <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+                <span className="font-black">Connected to Supabase Cloud</span>
+              </div>
+              <p className="text-black/70">
+                All game progress (XP, streaks, flashcards, favorites) automatically syncs to your account.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  sounds.playPop();
+                  await refreshCloudSync();
+                  setIsSyncToast(true);
+                  setTimeout(() => setIsSyncToast(false), 2500);
+                }}
+                className="cartoon-btn-sm px-3.5 py-2 rounded-xl bg-[#01CDFE] hover:bg-[#01CDFE]/80 text-black font-cartoon font-black text-xs flex items-center gap-1.5 border-2 border-black shadow-[2px_2px_0px_#000000]"
+              >
+                <Cloud className="w-3.5 h-3.5" />
+                <span>Sync Now</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  sounds.playPop();
+                  await logoutUser();
+                }}
+                className="cartoon-btn-sm px-3.5 py-2 rounded-xl bg-[#FF71CE] hover:bg-[#FF71CE]/80 text-black font-cartoon font-black text-xs flex items-center gap-1.5 border-2 border-black shadow-[2px_2px_0px_#000000]"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Log Out</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-[#FFFB96]/40 border-2 border-black rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[2px_2px_0px_#000000]">
+            <div className="text-xs font-bold text-black space-y-1 text-center sm:text-left">
+              <span className="font-black text-sm font-cartoon block">
+                Never lose your progress!
+              </span>
+              <p className="text-black/70 max-w-md">
+                Sign in with Google or your Email/Password to keep your level, unlocked trophies, and custom slang vocabulary synchronized anywhere.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                sounds.playPop();
+                openAuthModal();
+              }}
+              className="cartoon-btn px-5 py-3 rounded-2xl bg-[#05FFA1] hover:bg-[#05FFA1]/80 text-black font-cartoon font-black text-xs sm:text-sm flex items-center gap-2 border-2 border-black shadow-[3px_3px_0px_#000000] shrink-0"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>Sign In / Create Account 🚀</span>
+            </button>
+          </div>
+        )}
+
+        {isSyncToast && (
+          <div className="mt-3 bg-[#05FFA1] border-2 border-black text-black p-2.5 rounded-xl text-xs font-black text-center animate-pop shadow-[2px_2px_0px_#000000]">
+            ☁️ Cloud synchronization completed successfully!
+          </div>
+        )}
       </div>
 
       {/* Profile & Preferences Form */}

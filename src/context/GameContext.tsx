@@ -1,8 +1,16 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { UserProfile, Achievement } from '../types';
 import { ACHIEVEMENTS } from '../data/achievements';
 import { sounds } from '../utils/audio';
 import confetti from 'canvas-confetti';
+import { User } from '@supabase/supabase-js';
+import {
+  getSupabase,
+  isSupabaseConfigured,
+  fetchCloudProfile,
+  syncProfileToCloud,
+  signOut as supabaseSignOut,
+} from '../utils/supabase';
 
 import { Language } from '../utils/translations';
 
@@ -52,6 +60,15 @@ interface GameContextType {
   completeOnboarding: (name: string, avatarId: string, level: any, region: any, goal: number) => void;
   showPaymentModal: boolean;
   setShowPaymentModal: (val: boolean) => void;
+  
+  // Supabase Auth & Cloud Sync
+  user: User | null;
+  isAuthModalOpen: boolean;
+  openAuthModal: () => void;
+  closeAuthModal: () => void;
+  logoutUser: () => Promise<void>;
+  cloudSyncStatus: 'synced' | 'syncing' | 'offline' | 'guest';
+  refreshCloudSync: () => Promise<void>;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -84,12 +101,118 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [newUnlockedAchievement, setNewUnlockedAchievement] = useState<Achievement | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
-  // Sync profile to localStorage
+  // Supabase Authentication & Sync State
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<'synced' | 'syncing' | 'offline' | 'guest'>(
+    isSupabaseConfigured() ? 'guest' : 'offline'
+  );
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Initialize Supabase Auth Session listener
+  useEffect(() => {
+    const supabase = getSupabase();
+    if (!supabase) {
+      setCloudSyncStatus('offline');
+      return;
+    }
+
+    // Check existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser(session.user);
+        setCloudSyncStatus('syncing');
+        fetchCloudProfile(session.user.id).then((cloudData) => {
+          if (cloudData) {
+            setProfile((prev) => ({
+              ...prev,
+              name: cloudData.name || prev.name,
+              avatarId: cloudData.avatarId || prev.avatarId,
+              xp: Math.max(prev.xp, cloudData.xp || 0),
+              level: Math.max(prev.level, cloudData.level || 1),
+              streak: Math.max(prev.streak, cloudData.streak || 1),
+              germanLevel: cloudData.germanLevel || prev.germanLevel,
+              preferredRegion: cloudData.preferredRegion || prev.preferredRegion,
+              favoritedWordIds: Array.from(new Set([...prev.favoritedWordIds, ...(cloudData.favoritedWordIds || [])])),
+              learnedWordIds: Array.from(new Set([...prev.learnedWordIds, ...(cloudData.learnedWordIds || [])])),
+            }));
+            setCloudSyncStatus('synced');
+          } else {
+            // First time login - upload local profile to cloud
+            syncProfileToCloud(profile, session.user.id).then(() => {
+              setCloudSyncStatus('synced');
+            });
+          }
+        });
+      } else {
+        setUser(null);
+        setCloudSyncStatus('guest');
+      }
+    });
+
+    // Listen for auth changes (e.g. Google OAuth redirect, login, logout)
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        setUser(session.user);
+        setCloudSyncStatus('syncing');
+        const cloudData = await fetchCloudProfile(session.user.id);
+        if (cloudData) {
+          setProfile((prev) => ({
+            ...prev,
+            name: cloudData.name || prev.name,
+            avatarId: cloudData.avatarId || prev.avatarId,
+            xp: Math.max(prev.xp, cloudData.xp || 0),
+            level: Math.max(prev.level, cloudData.level || 1),
+            streak: Math.max(prev.streak, cloudData.streak || 1),
+            germanLevel: cloudData.germanLevel || prev.germanLevel,
+            preferredRegion: cloudData.preferredRegion || prev.preferredRegion,
+            favoritedWordIds: Array.from(new Set([...prev.favoritedWordIds, ...(cloudData.favoritedWordIds || [])])),
+            learnedWordIds: Array.from(new Set([...prev.learnedWordIds, ...(cloudData.learnedWordIds || [])])),
+          }));
+          setCloudSyncStatus('synced');
+        } else {
+          await syncProfileToCloud(profile, session.user.id);
+          setCloudSyncStatus('synced');
+        }
+      } else {
+        setUser(null);
+        setCloudSyncStatus('guest');
+      }
+    });
+
+    return () => {
+      authListener?.subscription.unsubscribe();
+    };
+  }, []);
+
+  // Debounced auto-sync to Supabase Cloud whenever profile changes
+  const debouncedCloudSync = useCallback(
+    (currentProfile: UserProfile, currentUser: User | null) => {
+      if (!currentUser || !isSupabaseConfigured()) return;
+
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+      }
+
+      setCloudSyncStatus('syncing');
+      syncTimeoutRef.current = setTimeout(async () => {
+        const success = await syncProfileToCloud(currentProfile, currentUser.id);
+        setCloudSyncStatus(success ? 'synced' : 'guest');
+      }, 1500);
+    },
+    []
+  );
+
+  // Sync profile to localStorage & Supabase
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
     } catch {}
-  }, [profile]);
+
+    if (user) {
+      debouncedCloudSync(profile, user);
+    }
+  }, [profile, user, debouncedCloudSync]);
 
   // Sync stats to localStorage
   useEffect(() => {
@@ -301,6 +424,29 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setNewUnlockedAchievement(null);
   };
 
+  const openAuthModal = () => {
+    sounds.playPop();
+    setIsAuthModalOpen(true);
+  };
+
+  const closeAuthModal = () => {
+    setIsAuthModalOpen(false);
+  };
+
+  const logoutUser = async () => {
+    sounds.playPop();
+    await supabaseSignOut();
+    setUser(null);
+    setCloudSyncStatus('guest');
+  };
+
+  const refreshCloudSync = async () => {
+    if (!user) return;
+    setCloudSyncStatus('syncing');
+    const success = await syncProfileToCloud(profile, user.id);
+    setCloudSyncStatus(success ? 'synced' : 'guest');
+  };
+
   return (
     <GameContext.Provider
       value={{
@@ -320,6 +466,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         completeOnboarding,
         showPaymentModal,
         setShowPaymentModal,
+        user,
+        isAuthModalOpen,
+        openAuthModal,
+        closeAuthModal,
+        logoutUser,
+        cloudSyncStatus,
+        refreshCloudSync,
       }}
     >
       {children}

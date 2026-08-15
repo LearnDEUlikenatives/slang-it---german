@@ -11,7 +11,9 @@ import {
   VolumeX,
   Globe,
   User,
-  ChevronDown
+  ChevronDown,
+  Cloud,
+  Check
 } from 'lucide-react';
 
 interface Props {
@@ -20,7 +22,15 @@ interface Props {
 }
 
 export const Navbar: React.FC<Props> = ({ activeTab, onSelectTab }) => {
-  const { profile, updateProfile, setSystemLanguage, setShowPaymentModal } = useGame();
+  const {
+    profile,
+    updateProfile,
+    setSystemLanguage,
+    setShowPaymentModal,
+    user,
+    openAuthModal,
+    cloudSyncStatus,
+  } = useGame();
   const { t } = useTranslation(profile.systemLanguage);
   const [showLangMenu, setShowLangMenu] = useState(false);
   const langMenuRef = useRef<HTMLDivElement>(null);
@@ -139,6 +149,29 @@ export const Navbar: React.FC<Props> = ({ activeTab, onSelectTab }) => {
               </div>
             )}
           </div>
+
+          {/* Cloud Sync & Auth Button */}
+          <button
+            id="cloud-auth-btn"
+            onClick={() => {
+              sounds.playPop();
+              openAuthModal();
+            }}
+            className={`cartoon-btn-sm px-2.5 py-1 rounded-xl flex items-center gap-1 text-xs font-black font-cartoon border-2 border-black shadow-[2px_2px_0px_#000000] transition-transform active:scale-95 ${
+              user
+                ? 'bg-[#05FFA1] text-black hover:bg-[#05FFA1]/80'
+                : 'bg-[#FFFB96] text-black hover:bg-[#FFFB96]/80'
+            }`}
+            title={user ? `Signed in as ${user.email} (Cloud Synced)` : 'Sign in to save points to Supabase Cloud'}
+          >
+            <Cloud className={`w-3.5 h-3.5 ${cloudSyncStatus === 'syncing' ? 'animate-bounce' : ''}`} />
+            <span className="hidden sm:inline">
+              {user ? 'Synced' : 'Save XP'}
+            </span>
+            {user && (
+              <span className="w-2 h-2 rounded-full bg-emerald-700 animate-pulse hidden sm:inline-block" />
+            )}
+          </button>
 
           {/* Streak Badge */}
           <div
