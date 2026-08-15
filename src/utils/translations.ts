@@ -89,7 +89,7 @@ export const UI_TRANSLATIONS: Record<Language, Record<string, string>> = {
     
     // Party Mode
     party_title: 'Party Battle',
-    party_subtitle: 'Multiplayer Buzzer Battle & Pass & Play (2-8 Players)',
+    party_subtitle: 'Multiplayer Pass & Play (2-8 Players), Take turns and pass the screen around to answer.',
     mode_buzzer: '⚡ Fast Buzzer Battle',
     mode_buzzer_desc: 'Fastest finger buzzes in to answer questions first!',
     mode_pass: '🔄 Pass & Play',
@@ -122,7 +122,7 @@ export const UI_TRANSLATIONS: Record<Language, Record<string, string>> = {
     
     // Dictionary / Lexikon
     lexicon_title: 'German Slang Dictionary',
-    lexicon_subtitle: 'Browse 100+ authentic slang terms, idioms & youth words',
+    lexicon_subtitle: 'Browse 300+ authentic slang terms, idioms & youth words',
     search_placeholder: 'Search slang term, meaning, or keyword...',
     filter_all: 'All Categories',
     filter_favorites: 'Favorites only ⭐',
@@ -270,7 +270,7 @@ export const UI_TRANSLATIONS: Record<Language, Record<string, string>> = {
     back_to_menu: 'Zum Hauptmenü',
     
     party_title: 'Stammtisch Party-Duell',
-    party_subtitle: 'Buzzer-Battle & Pass & Play für 2-8 Spieler',
+    party_subtitle: 'Multiplayer Pass & Play (2-8 Spieler) – Reihum das Gerät weitergeben und antworten.',
     mode_buzzer: '⚡ Schneller Buzzer-Modus',
     mode_buzzer_desc: 'Wer zuerst auf seinen Buzzer tippt, darf antworten!',
     mode_pass: '🔄 Pass & Play',
@@ -424,7 +424,7 @@ export const UI_TRANSLATIONS: Record<Language, Record<string, string>> = {
     back_to_menu: 'Al Menú Principal',
     
     party_title: 'Duelo de Fiesta',
-    party_subtitle: 'Batalla con pulsador y pasa el móvil (2-8 Jugadores)',
+    party_subtitle: 'Multiplayer Pass & Play (2-8 Jugadores), toma turnos y pasa la pantalla para responder.',
     mode_buzzer: '⚡ Modo Pulsador Rápido',
     mode_buzzer_desc: '¡El dedo más rápido en presionar el pulsador responde primero!',
     mode_pass: '🔄 Pasar y Jugar',
@@ -578,7 +578,7 @@ export const UI_TRANSLATIONS: Record<Language, Record<string, string>> = {
     back_to_menu: 'Retour au Menu',
     
     party_title: 'Duel de Soirée',
-    party_subtitle: 'Bataille de Buzzers & Passe le Téléphone (2-8 Joueurs)',
+    party_subtitle: 'Multiplayer Pass & Play (2-8 Joueurs), passez l’écran à tour de rôle pour répondre.',
     mode_buzzer: '⚡ Mode Buzzer Rapide',
     mode_buzzer_desc: 'Le doigt le plus rapide appuie sur le buzzer pour répondre !',
     mode_pass: '🔄 Passe et Joue',
@@ -732,7 +732,7 @@ export const UI_TRANSLATIONS: Record<Language, Record<string, string>> = {
     back_to_menu: 'メインメニューへ',
     
     party_title: '対戦パーティ',
-    party_subtitle: '早押しボタン対戦＆交代プレイ（2〜8人）',
+    party_subtitle: 'Multiplayer Pass & Play（2〜8人）画面を順番に回して回答しよう。',
     mode_buzzer: '⚡ 早押し早答バトル',
     mode_buzzer_desc: '一番早くボタンを押したプレイヤーが回答権を獲得！',
     mode_pass: '🔄 交代パス＆プレイ',
@@ -886,7 +886,7 @@ export const UI_TRANSLATIONS: Record<Language, Record<string, string>> = {
     back_to_menu: '메인 메뉴로',
     
     party_title: '파티 배틀',
-    party_subtitle: '스피드 버저 대결 & 패스 앤 플레이 (2-8인)',
+    party_subtitle: 'Multiplayer Pass & Play (2-8인), 화면을 번갈아 넘기며 순서대로 답변하세요.',
     mode_buzzer: '⚡ 스피드 버저 모드',
     mode_buzzer_desc: '가장 먼저 버저를 누른 사람이 정답을 맞힙니다!',
     mode_pass: '🔄 패스 앤 플레이',
@@ -1040,7 +1040,7 @@ export const UI_TRANSLATIONS: Record<Language, Record<string, string>> = {
     back_to_menu: 'Al Menu Principale',
     
     party_title: 'Sfida di Gruppo',
-    party_subtitle: 'Battaglia di Pulsanti & Passa il Telefono (2-8 Giocatori)',
+    party_subtitle: 'Multiplayer Pass & Play (2-8 Giocatori), a turno passatevi lo schermo per rispondere.',
     mode_buzzer: '⚡ Modalità Pulsante Rapido',
     mode_buzzer_desc: 'Il dito più veloce preme il pulsante e risponde!',
     mode_pass: '🔄 Passa e Gioca',
@@ -1194,7 +1194,7 @@ export const UI_TRANSLATIONS: Record<Language, Record<string, string>> = {
     back_to_menu: '返回主菜单',
     
     party_title: '聚会派对对决',
-    party_subtitle: '抢答器对战与轮流传递模式 (支持2-8人)',
+    party_subtitle: 'Multiplayer Pass & Play (2-8人)，轮流传递屏幕作答。',
     mode_buzzer: '⚡ 极速抢答器模式',
     mode_buzzer_desc: '拼手速！谁先按下抢答器谁先回答！',
     mode_pass: '🔄 轮流传递模式',
@@ -1348,7 +1348,7 @@ export const UI_TRANSLATIONS: Record<Language, Record<string, string>> = {
     back_to_menu: 'முதன்மை மெனு',
     
     party_title: 'பார்ட்டி சவால்',
-    party_subtitle: 'பஸ்ஸர் யுத்தம் & முறை வைத்து விளையாடுதல் (2-8 வீரர்கள்)',
+    party_subtitle: 'Multiplayer Pass & Play (2-8 வீரர்கள்), திரையை மாற்றி மாற்றி கொடுத்து பதிலளிக்கவும்.',
     mode_buzzer: '⚡ வேக பஸ்ஸர் முறை',
     mode_buzzer_desc: 'யார் முதலில் பஸ்ஸரை அழுத்துகிறார்களோ அவரே பதில் சொல்லலாம்!',
     mode_pass: '🔄 முறை வைத்து ஆடுதல்',
@@ -1502,7 +1502,7 @@ export const UI_TRANSLATIONS: Record<Language, Record<string, string>> = {
     back_to_menu: 'मुख्य मेन्यू पर जाएं',
     
     party_title: 'पार्टी मुकाबला',
-    party_subtitle: 'बज़र बैटल और पास एंड प्ले (2-8 खिलाड़ी)',
+    party_subtitle: 'Multiplayer Pass & Play (2-8 खिलाड़ी), बारी-बारी से स्क्रीन पास करके जवाब दें।',
     mode_buzzer: '⚡ तेज़ बज़र मोड',
     mode_buzzer_desc: 'जो सबसे पहले बज़र दबाएगा, वही उत्तर देगा!',
     mode_pass: '🔄 पास एंड प्ले',

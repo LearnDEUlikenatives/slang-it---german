@@ -67,8 +67,17 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang }) 
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const speechRecognizerRef = useRef<any>(null);
 
-  // Timer Ref
+  // Timer Refs
   const timerRef = useRef<any>(null);
+  const autoNextTimeoutRef = useRef<any>(null);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (autoNextTimeoutRef.current) clearTimeout(autoNextTimeoutRef.current);
+    };
+  }, []);
 
   // Check trial
   useEffect(() => {
@@ -217,6 +226,12 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang }) 
           });
         } catch {}
       }
+
+      // Auto-advance to the next scenario on correct answer
+      if (autoNextTimeoutRef.current) clearTimeout(autoNextTimeoutRef.current);
+      autoNextTimeoutRef.current = setTimeout(() => {
+        handleNextQuestion();
+      }, 900);
     } else {
       sounds.playWrong();
       setCombo(0);
@@ -226,7 +241,7 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang }) 
         // 3 strikes game over on Hard mode
         setTimeout(() => {
           finishGame();
-        }, 1200);
+        }, 1500);
         return;
       }
     }
@@ -242,6 +257,7 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang }) 
   };
 
   const handleNextQuestion = () => {
+    if (autoNextTimeoutRef.current) clearTimeout(autoNextTimeoutRef.current);
     sounds.playPop();
     const nextIdx = currentIndex + 1;
     if (nextIdx >= questions.length || totalTimeLeft <= 0) {
@@ -705,37 +721,92 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang }) 
           })}
         </div>
 
-        {/* Revealed Answer Explanation Box */}
-        {isAnswerRevealed && (
-          <div className="mt-5 p-4 rounded-2xl bg-[#FFFB96] border-3 border-black shadow-[3px_3px_0px_#000000] animate-pop space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="font-black text-base text-black font-cartoon italic">
-                {currentQ.article ? currentQ.article + ' ' : ''}{currentQ.term}
-              </span>
-              <span className="text-xs font-black bg-black text-[#FFFB96] px-2.5 py-0.5 rounded-lg">
-                🇩🇪 {currentQ.meaningDe}
-              </span>
-            </div>
-            {profile.systemLanguage !== 'de' ? (
-              <p className="text-xs font-bold text-black/80">
-                {LANGUAGES.find((l) => l.code === profile.systemLanguage)?.flag || '🌐'}{' '}
-                {LANGUAGES.find((l) => l.code === profile.systemLanguage)?.nativeName || 'Translation'}:{' '}
-                {getSlangMeaning(currentQ, profile.systemLanguage)}
-              </p>
+        {/* Revealed Answer Feedback & Explanation Box */}
+        {isAnswerRevealed && selectedOption && (
+          <>
+            {selectedOption.toLowerCase() === currentQ.term.toLowerCase() ? (
+              /* Correct Answer Pop-Up */
+              <div className="mt-4 p-4 rounded-2xl bg-[#05FFA1] border-3 border-black shadow-[4px_4px_0px_#000000] animate-pop flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-black text-[#05FFA1] flex items-center justify-center font-black text-2xl shadow-[2px_2px_0px_#ffffff]">
+                    ✓
+                  </div>
+                  <div>
+                    <span className="font-cartoon font-black text-lg text-black block italic">
+                      {profile.systemLanguage === 'de' ? 'Richtig!' : 'Correct!'}
+                    </span>
+                    <span className="text-xs font-bold text-black/80">
+                      {currentQ.article ? currentQ.article + ' ' : ''}{currentQ.term}
+                    </span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs font-black bg-black text-[#FFFB96] px-3 py-1.5 rounded-xl font-cartoon shadow-[2px_2px_0px_#000000]">
+                    +{config.difficulty === 'hard' ? 150 : config.difficulty === 'medium' ? 100 : 75} XP
+                  </span>
+                </div>
+              </div>
             ) : (
-              <p className="text-xs font-bold text-black/80">
-                🇬🇧 English: {currentQ.meaningEn}
-              </p>
+              /* Wrong Answer Pop-Up + Explanation + Next Button */
+              <div className="mt-4 space-y-3 animate-pop">
+                <div className="p-3.5 rounded-2xl bg-rose-400 border-3 border-black shadow-[4px_4px_0px_#000000] flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-black text-rose-400 flex items-center justify-center font-black text-xl shadow-[2px_2px_0px_#ffffff]">
+                      ✕
+                    </div>
+                    <div>
+                      <span className="font-cartoon font-black text-base text-black block italic">
+                        {profile.systemLanguage === 'de' ? 'Falsch!' : 'Incorrect!'}
+                      </span>
+                      <span className="text-xs font-bold text-black">
+                        {t('correct_answer_label')} <strong>"{currentQ.term}"</strong>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-[#FFFB96] border-3 border-black shadow-[4px_4px_0px_#000000] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-black text-base text-black font-cartoon italic">
+                      {currentQ.article ? currentQ.article + ' ' : ''}{currentQ.term}
+                    </span>
+                    <span className="text-xs font-black bg-black text-[#FFFB96] px-2.5 py-0.5 rounded-lg">
+                      🇩🇪 {currentQ.meaningDe}
+                    </span>
+                  </div>
+                  {profile.systemLanguage !== 'de' ? (
+                    <p className="text-xs font-bold text-black/80">
+                      {LANGUAGES.find((l) => l.code === profile.systemLanguage)?.flag || '🌐'}{' '}
+                      {LANGUAGES.find((l) => l.code === profile.systemLanguage)?.nativeName || 'Translation'}:{' '}
+                      {getSlangMeaning(currentQ, profile.systemLanguage)}
+                    </p>
+                  ) : (
+                    <p className="text-xs font-bold text-black/80">
+                      🇬🇧 English: {currentQ.meaningEn}
+                    </p>
+                  )}
+                  {currentQ.exampleDe && (
+                    <p className="text-xs italic text-black font-semibold bg-white/80 p-2.5 rounded-xl border border-black">
+                      "{currentQ.exampleDe}"
+                    </p>
+                  )}
+
+                  <div className="pt-2 flex justify-end">
+                    <button
+                      onClick={handleNextQuestion}
+                      className="cartoon-btn px-6 py-2.5 rounded-xl bg-[#05FFA1] hover:bg-[#05FFA1]/80 text-black font-black text-sm font-cartoon flex items-center gap-2 border-3 border-black shadow-[3px_3px_0px_#000000]"
+                    >
+                      <span>{t('next_question')}</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
-            {currentQ.exampleDe && (
-              <p className="text-xs italic text-black font-semibold bg-white/80 p-2 rounded-xl border border-black">
-                "{currentQ.exampleDe}"
-              </p>
-            )}
-          </div>
+          </>
         )}
 
-        {/* Bottom Actions: Voice Input + Hints + Next */}
+        {/* Bottom Actions: Voice Input + Hints */}
         <div className="mt-6 pt-4 border-t-2 border-black/10 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             {/* Hint Button */}
@@ -763,17 +834,6 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang }) 
               </button>
             )}
           </div>
-
-          {/* Next Question Button */}
-          {isAnswerRevealed && (
-            <button
-              onClick={handleNextQuestion}
-              className="cartoon-btn px-6 py-2.5 rounded-xl bg-[#05FFA1] hover:bg-[#05FFA1]/80 text-black font-black text-sm font-cartoon flex items-center gap-2 border-3 border-black shadow-[3px_3px_0px_#000000]"
-            >
-              <span>{t('next_question')}</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          )}
         </div>
 
         {/* Revealed Hint Message */}

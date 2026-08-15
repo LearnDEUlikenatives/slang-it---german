@@ -4,6 +4,7 @@ import { CartoonAvatar, AVATAR_LIST } from './CartoonAvatar';
 import { REGION_LABELS } from '../data/slangDatabase';
 import { sounds } from '../utils/audio';
 import { useTranslation, LANGUAGES, Language } from '../utils/translations';
+import AppLogoImg from '../assets/images/german_slang_logo_1786812856007.jpg';
 import { Sparkles, ArrowRight, Check, Globe } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -60,7 +61,12 @@ export const OnboardingModal: React.FC = () => {
         {step === 1 && (
           <div>
             <div className="text-center mb-5">
-              <span className="text-3xl block mb-1">🥨</span>
+              <img
+                src={AppLogoImg}
+                alt="Logo"
+                referrerPolicy="no-referrer"
+                className="w-14 h-14 rounded-2xl border-3 border-black mx-auto mb-2 shadow-[3px_3px_0px_#000000]"
+              />
               <h3 className="text-2xl sm:text-3xl font-black text-black font-cartoon italic">
                 Welcome to Slang It - German!
               </h3>

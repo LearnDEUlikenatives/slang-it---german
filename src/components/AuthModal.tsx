@@ -3,6 +3,7 @@ import { useGame } from '../context/GameContext';
 import { useTranslation } from '../utils/translations';
 import { sounds } from '../utils/audio';
 import { isSupabaseConfigured, signInWithEmail, signUpWithEmail, signInWithGoogle } from '../utils/supabase';
+import AppLogoImg from '../assets/images/german_slang_logo_1786812856007.jpg';
 import { X, Mail, Lock, User, Sparkles, CheckCircle2, AlertCircle, Cloud, ArrowRight } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -191,9 +192,12 @@ export const AuthModal: React.FC = () => {
           <div>
             {/* Header */}
             <div className="text-center mb-5">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#FFFB96] border-3 border-black text-2xl shadow-[3px_3px_0px_#000000] mb-2">
-                ⚡
-              </div>
+              <img
+                src={AppLogoImg}
+                alt="Logo"
+                referrerPolicy="no-referrer"
+                className="w-14 h-14 rounded-2xl border-3 border-black mx-auto mb-2 shadow-[3px_3px_0px_#000000] object-cover"
+              />
               <h2 className="text-2xl sm:text-3xl font-black text-black font-cartoon italic tracking-tight">
                 {isSignUp ? t('auth_title_signup') : t('auth_title_signin')}
               </h2>

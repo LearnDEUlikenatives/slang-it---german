@@ -81,10 +81,6 @@ export const HomeDashboard: React.FC<Props> = ({ onNavigate, onPracticeSlang }) 
                 )}
               </div>
 
-              <p className="text-xs sm:text-sm font-black text-black">
-                {t('ready_challenge')}
-              </p>
-
               {/* XP Progress Bar */}
               <div className="mt-3 w-full sm:w-64">
                 <div className="flex justify-between text-[11px] font-black text-black font-cartoon mb-1">

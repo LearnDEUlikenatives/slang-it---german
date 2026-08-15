@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { Player, SlangWord } from '../types';
 import { SLANG_DATABASE } from '../data/slangDatabase';
 import { CartoonAvatar, AVATAR_LIST } from './CartoonAvatar';
@@ -11,7 +11,9 @@ import {
   RotateCcw,
   Plus,
   Trash2,
-  Crown
+  Crown,
+  ArrowRight,
+  Sparkles
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -32,7 +34,6 @@ export const PartyMode: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
 
   // Party Setup State
   const [isLobby, setIsLobby] = useState(true);
-  const [partyModeType, setPartyModeType] = useState<'buzzer' | 'pass_and_play'>('buzzer');
   const [roundLimit, setRoundLimit] = useState(8);
   const [players, setPlayers] = useState<Player[]>([
     { id: 'p1', name: 'Player 1', avatarId: 'hipster_macher', score: 0, strikes: 0, correctAnswers: 0, streak: 0, color: PLAYER_COLORS[0] },
@@ -44,15 +45,10 @@ export const PartyMode: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
   const [questions, setQuestions] = useState<SlangWord[]>([]);
   const [currentRound, setCurrentRound] = useState(0);
   const [activePlayerTurnIndex, setActivePlayerTurnIndex] = useState(0);
-  const [buzzedPlayerId, setBuzzedPlayerId] = useState<string | null>(null);
-  const [buzzerCountdown, setBuzzerCountdown] = useState<number>(8);
-  const [lockedOutPlayerIds, setLockedOutPlayerIds] = useState<string[]>([]);
   const [isAnswerRevealed, setIsAnswerRevealed] = useState(false);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
   const [isGameOver, setIsGameOver] = useState(false);
-
-  const buzzerTimerRef = useRef<any>(null);
 
   // Add new player to lobby
   const handleAddPlayer = () => {
@@ -100,7 +96,7 @@ export const PartyMode: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
     );
   };
 
-  // Start Party Game
+  // Start Party Game (Direct Pass & Play)
   const startPartyGame = () => {
     sounds.playPop();
     const shuffled = [...SLANG_DATABASE].sort(() => Math.random() - 0.5);
@@ -132,55 +128,22 @@ export const PartyMode: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
     }
 
     const currentQ = qList[roundIdx];
-    setBuzzedPlayerId(null);
-    setLockedOutPlayerIds([]);
     setIsAnswerRevealed(false);
     setSelectedOption(null);
-    setBuzzerCountdown(8);
 
     const opts = [currentQ.term, ...(currentQ.distractors || ['Macher', 'Digga', 'Alman']).slice(0, 3)];
     opts.sort(() => Math.random() - 0.5);
     setShuffledOptions(opts);
   };
 
-  // Buzzer Click
-  const handlePlayerBuzz = (playerId: string) => {
-    if (buzzedPlayerId || lockedOutPlayerIds.includes(playerId) || isAnswerRevealed) return;
-    sounds.playBuzzer();
-    setBuzzedPlayerId(playerId);
-    setBuzzerCountdown(8);
-
-    // Start 8-second answer timer
-    clearInterval(buzzerTimerRef.current);
-    buzzerTimerRef.current = setInterval(() => {
-      setBuzzerCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(buzzerTimerRef.current);
-          handleAnswerTimeout(playerId);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-
-  const handleAnswerTimeout = (playerId: string) => {
-    sounds.playWrong();
-    setPlayers((prev) =>
-      prev.map((p) => (p.id === playerId ? { ...p, score: Math.max(0, p.score - 30), streak: 0 } : p))
-    );
-    setLockedOutPlayerIds((prev) => [...prev, playerId]);
-    setBuzzedPlayerId(null);
-  };
-
   const handleAnswerSelection = (chosenTerm: string) => {
-    clearInterval(buzzerTimerRef.current);
+    if (isAnswerRevealed) return;
     const currentQ = questions[currentRound];
     const isCorrect = chosenTerm.trim().toLowerCase() === currentQ.term.trim().toLowerCase();
     setSelectedOption(chosenTerm);
     setIsAnswerRevealed(true);
 
-    const activePlayerId = partyModeType === 'buzzer' ? buzzedPlayerId : players[activePlayerTurnIndex]?.id;
+    const activePlayerId = players[activePlayerTurnIndex]?.id;
 
     if (isCorrect) {
       sounds.playCorrect();
@@ -208,13 +171,9 @@ export const PartyMode: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
       } catch {}
     } else {
       sounds.playWrong();
-      if (partyModeType === 'buzzer' && activePlayerId) {
-        setPlayers((prev) =>
-          prev.map((p) =>
-            p.id === activePlayerId ? { ...p, score: Math.max(0, p.score - 50), streak: 0 } : p
-          )
-        );
-      }
+      setPlayers((prev) =>
+        prev.map((p) => (p.id === activePlayerId ? { ...p, streak: 0 } : p))
+      );
     }
   };
 
@@ -247,6 +206,7 @@ export const PartyMode: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
 
   const currentQ = questions[currentRound];
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+  const activeTurnPlayer = players[activePlayerTurnIndex];
 
   // LOBBY SETUP VIEW
   if (isLobby) {
@@ -275,45 +235,6 @@ export const PartyMode: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
             >
               <Plus className="w-4 h-4" />
               <span>{t('add_player')} ({players.length}/8)</span>
-            </button>
-          </div>
-
-          {/* Game Mode Selector */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-            <button
-              onClick={() => {
-                sounds.playPop();
-                setPartyModeType('buzzer');
-              }}
-              className={`cartoon-card p-4 rounded-2xl text-left transition-all ${
-                partyModeType === 'buzzer' ? 'bg-[#FFFB96] ring-2 ring-black shadow-[4px_4px_0px_#000000]' : 'bg-white/80 opacity-70 border-black/40'
-              }`}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-xl">🚨</span>
-                <span className="font-black text-black font-cartoon text-base">{t('mode_buzzer')}</span>
-              </div>
-              <p className="text-xs text-black/80 font-bold">
-                {t('mode_buzzer_desc')}
-              </p>
-            </button>
-
-            <button
-              onClick={() => {
-                sounds.playPop();
-                setPartyModeType('pass_and_play');
-              }}
-              className={`cartoon-card p-4 rounded-2xl text-left transition-all ${
-                partyModeType === 'pass_and_play' ? 'bg-[#01CDFE]/30 ring-2 ring-black shadow-[4px_4px_0px_#000000]' : 'bg-white/80 opacity-70 border-black/40'
-              }`}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-xl">🔄</span>
-                <span className="font-black text-black font-cartoon text-base">{t('mode_pass')}</span>
-              </div>
-              <p className="text-xs text-black/80 font-bold">
-                {t('mode_pass_desc')}
-              </p>
             </button>
           </div>
 
@@ -366,7 +287,7 @@ export const PartyMode: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
           </div>
 
           {/* Round Count Selector */}
-          <div className="flex items-center justify-between gap-4 mb-6 pt-4 border-t-2 border-black/20">
+          <div className="flex items-center justify-between gap-4 mb-8 pt-4 border-t-2 border-black/20">
             <label className="text-sm font-black text-black font-cartoon">
               {t('round_count_label')}: <span className="text-[#FF71CE] underline">{roundLimit} {t('rounds_suffix')}</span>
             </label>
@@ -389,19 +310,11 @@ export const PartyMode: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
           </div>
 
           {/* Start Action */}
-          <div className="flex items-center justify-end gap-3">
-            {onBackToMenu && (
-              <button
-                onClick={onBackToMenu}
-                className="cartoon-btn px-4 py-3 rounded-2xl bg-white hover:bg-neutral-100 font-black text-sm text-black font-cartoon"
-              >
-                {t('back_btn')}
-              </button>
-            )}
+          <div className="flex items-center justify-end">
             <button
               id="start-party-match-btn"
               onClick={startPartyGame}
-              className="cartoon-btn px-8 py-3.5 rounded-2xl bg-[#05FFA1] hover:bg-[#05FFA1]/80 font-black text-base text-black font-cartoon flex items-center gap-2 shadow-[4px_4px_0px_#000000]"
+              className="cartoon-btn w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-[#05FFA1] hover:bg-[#05FFA1]/80 font-black text-base text-black font-cartoon flex items-center justify-center gap-2 shadow-[4px_4px_0px_#000000]"
             >
               <span>{t('start_party_btn')}</span>
               <Play className="w-5 h-5 fill-black" />
@@ -492,10 +405,7 @@ export const PartyMode: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
     );
   }
 
-  // ACTIVE PARTY GAMEPLAY VIEW
-  const buzzedPlayer = players.find((p) => p.id === buzzedPlayerId);
-  const activeTurnPlayer = players[activePlayerTurnIndex];
-
+  // ACTIVE PASS & PLAY GAMEPLAY VIEW
   return (
     <div id="active-party-game" className="max-w-3xl mx-auto py-3 px-3 sm:px-6">
       {/* Top Live Scoreboard Bar */}
@@ -506,20 +416,91 @@ export const PartyMode: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
           </span>
 
           <div className="flex items-center gap-2">
-            {players.map((p) => (
-              <div
-                key={p.id}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border-2 border-black text-xs font-black shadow-[2px_2px_0px_#000000] ${
-                  p.id === buzzedPlayerId
-                    ? 'bg-[#FFFB96] ring-2 ring-black scale-105'
-                    : 'bg-white text-black'
-                }`}
-              >
-                <CartoonAvatar avatarId={p.avatarId} size="sm" className="w-6 h-6 border" />
-                <span className="font-cartoon truncate max-w-[80px]">{p.name}:</span>
-                <span className="font-black text-black">{p.score}</span>
+            {players.map((p, idx) => {
+              const isCurrentTurn = idx === activePlayerTurnIndex;
+              return (
+                <div
+                  key={p.id}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border-2 border-black text-xs font-black shadow-[2px_2px_0px_#000000] transition-all ${
+                    isCurrentTurn
+                      ? 'bg-[#FFFB96] ring-2 ring-black scale-105 shadow-[3px_3px_0px_#000000]'
+                      : 'bg-white text-black'
+                  }`}
+                >
+                  <CartoonAvatar avatarId={p.avatarId} size="sm" className="w-6 h-6 border" />
+                  <span className="font-cartoon truncate max-w-[80px]">{p.name}:</span>
+                  <span className="font-black text-black">{p.score}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Active Player Selector & Pass The Screen Banner */}
+      <div className="cartoon-card bg-[#FFFB96] rounded-2xl p-3.5 mb-4 shadow-[4px_4px_0px_#000000] border-3 border-black">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2.5">
+            <CartoonAvatar avatarId={activeTurnPlayer?.avatarId} size="md" className="ring-2 ring-black" />
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-black uppercase text-black/70 tracking-wider">
+                  Current Turn (Pass Screen):
+                </span>
+                <span className="bg-black text-[#FFFB96] px-1.5 py-0.2 rounded text-[10px] font-black">
+                  Turn {activePlayerTurnIndex + 1}/{players.length}
+                </span>
               </div>
-            ))}
+              <span className="font-black text-lg text-black font-cartoon flex items-center gap-1.5">
+                👉 {activeTurnPlayer?.name} is answering!
+              </span>
+            </div>
+          </div>
+
+          <div className="text-right hidden sm:block">
+            <span className="text-[11px] font-black text-black/60 block">Tap below to switch who's answering:</span>
+            <span className="text-xs font-black text-black bg-white px-2 py-0.5 rounded-lg border-2 border-black">
+              Score: {activeTurnPlayer?.score || 0} pts
+            </span>
+          </div>
+        </div>
+
+        {/* Interactive Player Selector Chips */}
+        <div>
+          <div className="text-[11px] font-black text-black/70 mb-1.5 flex items-center justify-between">
+            <span>Select who is answering this question:</span>
+            <span className="sm:hidden text-[10px] font-bold">Tap name to choose</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {players.map((p, idx) => {
+              const isCurrentTurn = idx === activePlayerTurnIndex;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => {
+                    if (isAnswerRevealed) return;
+                    sounds.playPop();
+                    setActivePlayerTurnIndex(idx);
+                  }}
+                  disabled={isAnswerRevealed}
+                  className={`cartoon-btn p-2 rounded-xl flex items-center gap-2 text-left transition-all ${
+                    isCurrentTurn
+                      ? 'bg-[#05FFA1] ring-3 ring-black shadow-[3px_3px_0px_#000000] scale-[1.02]'
+                      : 'bg-white hover:bg-neutral-100 border-2 border-black/70 opacity-80'
+                  }`}
+                >
+                  <CartoonAvatar avatarId={p.avatarId} size="sm" className="w-7 h-7 shrink-0" />
+                  <div className="overflow-hidden min-w-0 flex-1">
+                    <span className="font-black text-xs text-black font-cartoon truncate block">
+                      {p.name}
+                    </span>
+                    <span className="text-[10px] font-black text-black/70 block">
+                      {p.score} pts {isCurrentTurn ? '⭐ Active' : ''}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -527,13 +508,11 @@ export const PartyMode: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
       {/* Main Party Scenario Comic Card */}
       <div className="cartoon-card-lg bg-white rounded-3xl p-5 sm:p-7 mb-4 relative overflow-hidden bg-gradient-to-b from-white to-[#FF71CE]/10">
         <div className="flex items-center justify-between gap-2 mb-3">
-          <span className="bg-[#FFFB96] text-black px-3 py-1 rounded-xl font-black text-xs border-2 border-black font-cartoon shadow-[2px_2px_0px_#000000]">
+          <span className="bg-[#01CDFE]/30 text-black px-3 py-1 rounded-xl font-black text-xs border-2 border-black font-cartoon shadow-[2px_2px_0px_#000000]">
             🎬 {currentQ?.scenario.title}
           </span>
           <span className="text-xs font-black text-black/80">
-            {partyModeType === 'buzzer'
-              ? t('buzzer_hit_to_answer')
-              : t('turn_indicator', { name: activeTurnPlayer?.name || '' })}
+            {t('turn_indicator', { name: activeTurnPlayer?.name || '' })}
           </span>
         </div>
 
@@ -565,90 +544,39 @@ export const PartyMode: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
         </div>
       </div>
 
-      {/* BUZZER STAGE (If in Buzzer Mode & not yet buzzed) */}
-      {partyModeType === 'buzzer' && !buzzedPlayerId && !isAnswerRevealed && (
-        <div className="cartoon-card bg-[#FFFB96]/90 rounded-3xl p-5 mb-4 text-center shadow-[4px_4px_0px_#000000]">
-          <h4 className="text-lg font-black text-black font-cartoon mb-3 italic">
-            {t('press_your_buzzer')}
-          </h4>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {players.map((p) => {
-              const isLockedOut = lockedOutPlayerIds.includes(p.id);
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => handlePlayerBuzz(p.id)}
-                  disabled={isLockedOut}
-                  className={`cartoon-btn p-4 rounded-3xl flex flex-col items-center justify-center gap-2 transition-transform active:scale-95 ${
-                    isLockedOut
-                      ? 'bg-neutral-300 opacity-40 cursor-not-allowed text-black/50'
-                      : `${p.color} hover:brightness-110 shadow-[4px_4px_0px_#000000]`
-                  }`}
-                >
-                  <CartoonAvatar avatarId={p.avatarId} size="md" />
-                  <span className="font-black text-sm font-cartoon tracking-wide">{p.name}</span>
-                  <span className="text-[11px] font-black uppercase bg-black/20 px-2 py-0.5 rounded-lg">
-                    {isLockedOut ? t('locked_out') : t('buzz_action')}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {/* Options Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+        {shuffledOptions.map((opt, idx) => {
+          const isCorrect = opt === currentQ?.term;
+          const isChosen = selectedOption === opt;
+          let style = 'bg-white hover:bg-[#FFFB96] text-black shadow-[4px_4px_0px_#000000]';
 
-      {/* ACTIVE ANSWERING STAGE (Once Buzzed or in Pass & Play mode) */}
-      {(buzzedPlayerId || partyModeType === 'pass_and_play' || isAnswerRevealed) && (
-        <div className="mb-4">
-          {partyModeType === 'buzzer' && buzzedPlayer && !isAnswerRevealed && (
-            <div className="cartoon-card bg-[#FFFB96] rounded-2xl p-3 mb-3 flex items-center justify-between animate-pop shadow-[3px_3px_0px_#000000]">
-              <div className="flex items-center gap-2">
-                <CartoonAvatar avatarId={buzzedPlayer.avatarId} size="sm" />
-                <span className="font-black text-sm text-black font-cartoon">
-                  {t('player_buzzed_msg', { name: buzzedPlayer.name })}
-                </span>
-              </div>
-              <span className="font-black text-lg text-black font-cartoon bg-white px-3 py-0.5 rounded-xl border-2 border-black shadow-[2px_2px_0px_#000000]">
-                ⏱️ {buzzerCountdown}s
-              </span>
-            </div>
-          )}
+          if (isAnswerRevealed) {
+            if (isCorrect) {
+              style = 'bg-[#05FFA1] text-black ring-4 ring-black scale-[1.02] shadow-[4px_4px_0px_#000000]';
+            } else if (isChosen && !isCorrect) {
+              style = 'bg-[#FF71CE] text-black line-through shadow-[2px_2px_0px_#000000]';
+            } else {
+              style = 'bg-white/60 text-black/40 border-black/30';
+            }
+          }
 
-          {/* Options Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {shuffledOptions.map((opt, idx) => {
-              const isCorrect = opt === currentQ?.term;
-              const isChosen = selectedOption === opt;
-              let style = 'bg-white hover:bg-[#FFFB96] text-black shadow-[4px_4px_0px_#000000]';
+          return (
+            <button
+              key={idx}
+              onClick={() => handleAnswerSelection(opt)}
+              disabled={isAnswerRevealed}
+              className={`cartoon-btn p-4 rounded-2xl font-black text-base sm:text-lg font-cartoon transition-all italic ${style}`}
+            >
+              {opt}
+            </button>
+          );
+        })}
+      </div>
 
-              if (isAnswerRevealed) {
-                if (isCorrect) {
-                  style = 'bg-[#05FFA1] text-black ring-4 ring-black scale-[1.02] shadow-[4px_4px_0px_#000000]';
-                } else if (isChosen && !isCorrect) {
-                  style = 'bg-[#FF71CE] text-black line-through shadow-[2px_2px_0px_#000000]';
-                } else {
-                  style = 'bg-white/60 text-black/40 border-black/30';
-                }
-              }
-
-              return (
-                <button
-                  key={idx}
-                  onClick={() => handleAnswerSelection(opt)}
-                  disabled={isAnswerRevealed}
-                  className={`cartoon-btn p-4 rounded-2xl font-black text-base sm:text-lg font-cartoon transition-all italic ${style}`}
-                >
-                  {opt}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Post-Answer Controls */}
+      {/* Post-Answer Reveal and Next Action */}
       {isAnswerRevealed && (
-        <div className="cartoon-card bg-white rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-pop mt-4 shadow-[4px_4px_0px_#000000]">
+        <div className="cartoon-card bg-white rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-pop shadow-[4px_4px_0px_#000000]">
           <div>
             <span className="font-black text-sm text-black font-cartoon block">
               {t('correct_answer_label')} "{currentQ?.term}"
@@ -660,12 +588,14 @@ export const PartyMode: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
 
           <button
             onClick={handleNextRound}
-            className="cartoon-btn w-full sm:w-auto px-6 py-3 rounded-xl bg-[#05FFA1] hover:bg-[#05FFA1]/80 font-black text-sm text-black font-cartoon shadow-[3px_3px_0px_#000000]"
+            className="cartoon-btn w-full sm:w-auto px-6 py-3 rounded-xl bg-[#05FFA1] hover:bg-[#05FFA1]/80 font-black text-sm text-black font-cartoon shadow-[3px_3px_0px_#000000] flex items-center justify-center gap-1.5"
           >
-            {t('next_round_btn')}
+            <span>{t('next_round_btn')}</span>
+            <ArrowRight className="w-4 h-4" />
           </button>
         </div>
       )}
     </div>
   );
 };
+

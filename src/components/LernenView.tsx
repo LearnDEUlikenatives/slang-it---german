@@ -6,7 +6,7 @@ import { sounds } from '../utils/audio';
 import { useGame } from '../context/GameContext';
 import { useTranslation, LANGUAGES } from '../utils/translations';
 import { getSlangMeaning } from '../utils/slangTranslations';
-import { Search, Sparkles, Bookmark, Flame } from 'lucide-react';
+import { Search, Bookmark, X, Filter, RotateCcw, Sparkles } from 'lucide-react';
 
 interface Props {
   onPracticeSlang?: (slang: SlangWord) => void;
@@ -24,48 +24,78 @@ export const LernenView: React.FC<Props> = ({ onPracticeSlang }) => {
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
   const [showOnlyFamilyFriendly, setShowOnlyFamilyFriendly] = useState(false);
 
-  // Slang of the Day (deterministic based on date)
-  const slangOfTheDay = useMemo(() => {
-    const todayNum = new Date().getDate();
-    return SLANG_DATABASE[todayNum % SLANG_DATABASE.length] || SLANG_DATABASE[0];
-  }, []);
+  // Clear all active filters
+  const handleResetFilters = () => {
+    sounds.playPop();
+    setSearchTerm('');
+    setSelectedCategory('all');
+    setSelectedRegion('all');
+    setSelectedRarity('all');
+    setShowOnlyFavorites(false);
+    setShowOnlyFamilyFriendly(false);
+  };
 
-  // Filtered list
+  const hasActiveFilters =
+    searchTerm.trim() !== '' ||
+    selectedCategory !== 'all' ||
+    selectedRegion !== 'all' ||
+    selectedRarity !== 'all' ||
+    showOnlyFavorites ||
+    showOnlyFamilyFriendly;
+
+  // Filtered list with strict category, dialect/region, and difficulty/rarity matching
   const filteredWords = useMemo(() => {
+    if (!hasActiveFilters) {
+      return [];
+    }
+
     return SLANG_DATABASE.filter((item) => {
-      // Search
+      // Search term query
       if (searchTerm.trim()) {
-        const query = searchTerm.toLowerCase();
+        const query = searchTerm.toLowerCase().trim();
         const matchesTerm = item.term.toLowerCase().includes(query);
         const matchesDe = item.meaningDe.toLowerCase().includes(query);
         const matchesEn = item.meaningEn.toLowerCase().includes(query);
         const localizedMeaning = getSlangMeaning(item, profile.systemLanguage).toLowerCase();
         const matchesLocalized = localizedMeaning.includes(query);
         const matchesExample = item.exampleDe.toLowerCase().includes(query);
-        if (!matchesTerm && !matchesDe && !matchesEn && !matchesLocalized && !matchesExample) return false;
+        const matchesCategory = item.category.toLowerCase().includes(query);
+        const matchesRegion = item.region.toLowerCase().includes(query);
+
+        if (
+          !matchesTerm &&
+          !matchesDe &&
+          !matchesEn &&
+          !matchesLocalized &&
+          !matchesExample &&
+          !matchesCategory &&
+          !matchesRegion
+        ) {
+          return false;
+        }
       }
 
-      // Category
+      // Category matching
       if (selectedCategory !== 'all' && item.category !== selectedCategory) {
         return false;
       }
 
-      // Region
-      if (selectedRegion !== 'all' && item.region !== selectedRegion && item.region !== 'all') {
+      // Regional Dialect matching (exact match when specific region is selected)
+      if (selectedRegion !== 'all' && item.region !== selectedRegion) {
         return false;
       }
 
-      // Rarity
+      // Difficulty / Rarity matching (e.g. 'common' for Alltäglich, 'rare', 'legendary')
       if (selectedRarity !== 'all' && item.rarity !== selectedRarity) {
         return false;
       }
 
-      // Favorites
+      // Favorites filter
       if (showOnlyFavorites && !profile.favoritedWordIds.includes(item.id)) {
         return false;
       }
 
-      // Family Friendly
+      // Family Friendly filter
       if (showOnlyFamilyFriendly && !item.isFamilyFriendly) {
         return false;
       }
@@ -73,6 +103,7 @@ export const LernenView: React.FC<Props> = ({ onPracticeSlang }) => {
       return true;
     });
   }, [
+    hasActiveFilters,
     searchTerm,
     selectedCategory,
     selectedRegion,
@@ -85,45 +116,6 @@ export const LernenView: React.FC<Props> = ({ onPracticeSlang }) => {
 
   return (
     <div id="lernen-view" className="max-w-6xl mx-auto py-4 px-3 sm:px-6">
-      {/* Slang of the Day Feature Banner */}
-      <div className="cartoon-card-lg bg-gradient-to-r from-[#FF71CE] via-[#FFFB96] to-[#05FFA1] rounded-3xl p-5 sm:p-6 mb-6 shadow-[6px_6px_0px_#000000] border-4 border-black">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="bg-black text-[#05FFA1] text-xs font-black px-3 py-1 rounded-xl uppercase tracking-wider font-cartoon flex items-center gap-1 shadow-[2px_2px_0px_#000000]">
-            <Sparkles className="w-3.5 h-3.5 text-[#05FFA1]" /> {t('slang_of_day')}
-          </span>
-          <span className="text-xs font-bold text-black hidden sm:inline">
-            ✨ {t('tagline')}
-          </span>
-        </div>
-
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-3xl sm:text-4xl font-black text-black font-cartoon italic">
-              "{slangOfTheDay.term}"
-            </h2>
-            <p className="text-sm font-bold text-black mt-1 max-w-2xl">
-              🇩🇪 {slangOfTheDay.meaningDe}
-              {profile.systemLanguage !== 'de' && (
-                <span className="ml-2 font-bold text-black/80">
-                  • {currentLangObj.flag} {getSlangMeaning(slangOfTheDay, profile.systemLanguage)}
-                </span>
-              )}
-            </p>
-          </div>
-
-          <button
-            onClick={() => {
-              sounds.playPop();
-              onPracticeSlang?.(slangOfTheDay);
-            }}
-            className="cartoon-btn px-5 py-2.5 rounded-2xl bg-black hover:bg-black/80 text-[#05FFA1] font-black text-sm font-cartoon shrink-0 flex items-center gap-2 shadow-[3px_3px_0px_#000000]"
-          >
-            <span>{t('practice_this_term')}</span>
-            <Flame className="w-4 h-4 text-[#FF71CE] fill-[#FF71CE]" />
-          </button>
-        </div>
-      </div>
-
       {/* Search & Filter Controls */}
       <div className="cartoon-card bg-white rounded-3xl p-4 sm:p-6 mb-6 space-y-4 shadow-[6px_6px_0px_#000000] border-4 border-black">
         {/* Search Bar */}
@@ -135,84 +127,138 @@ export const LernenView: React.FC<Props> = ({ onPracticeSlang }) => {
             placeholder={t('search_placeholder')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-white border-3 border-black rounded-2xl text-sm font-black text-black placeholder:text-black/40 focus:outline-none focus:bg-[#FFFB96]/20 shadow-[3px_3px_0px_#000000]"
+            className="w-full pl-12 pr-10 py-3.5 bg-white border-3 border-black rounded-2xl text-sm sm:text-base font-black text-black placeholder:text-black/40 focus:outline-none focus:bg-[#FFFB96]/20 shadow-[3px_3px_0px_#000000]"
           />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-neutral-100 text-black/60"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         {/* Category Filter Chips */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          <button
-            onClick={() => {
-              sounds.playPop();
-              setSelectedCategory('all');
-            }}
-            className={`cartoon-btn-sm px-3.5 py-1.5 rounded-xl text-xs font-black whitespace-nowrap font-cartoon ${
-              selectedCategory === 'all' ? 'bg-black text-white shadow-[2px_2px_0px_#000000]' : 'bg-white text-black border-2 border-black'
-            }`}
-          >
-            {t('filter_all')} ({SLANG_DATABASE.length})
-          </button>
-
-          {Object.entries(CATEGORY_LABELS).map(([catKey, catMeta]) => (
+        <div>
+          <div className="text-[11px] font-black uppercase text-black/70 font-cartoon mb-1.5 flex items-center gap-1">
+            <Filter className="w-3.5 h-3.5" />
+            <span>Category:</span>
+          </div>
+          <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scrollbar-thin">
             <button
-              key={catKey}
               onClick={() => {
                 sounds.playPop();
-                setSelectedCategory(catKey);
+                setSelectedCategory('all');
               }}
-              className={`cartoon-btn-sm px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap flex items-center gap-1.5 font-cartoon ${
-                selectedCategory === catKey
-                  ? 'bg-[#FFFB96] text-black ring-2 ring-black shadow-[2px_2px_0px_#000000]'
-                  : 'bg-white text-black border-2 border-black'
+              className={`cartoon-btn-sm px-3.5 py-1.5 rounded-xl text-xs font-black whitespace-nowrap font-cartoon transition-all ${
+                selectedCategory === 'all'
+                  ? 'bg-black text-white shadow-[2px_2px_0px_#000000]'
+                  : 'bg-white text-black border-2 border-black hover:bg-[#FFFB96]/50'
               }`}
             >
-              <span>{catMeta.icon}</span>
-              <span>{catMeta.label}</span>
+              {t('filter_all')} ({SLANG_DATABASE.length})
             </button>
-          ))}
+
+            {Object.entries(CATEGORY_LABELS).map(([catKey, catMeta]) => {
+              const countInCat = SLANG_DATABASE.filter((w) => w.category === catKey).length;
+              return (
+                <button
+                  key={catKey}
+                  onClick={() => {
+                    sounds.playPop();
+                    setSelectedCategory(catKey);
+                  }}
+                  className={`cartoon-btn-sm px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap flex items-center gap-1.5 font-cartoon transition-all ${
+                    selectedCategory === catKey
+                      ? 'bg-[#FFFB96] text-black ring-2 ring-black shadow-[2px_2px_0px_#000000]'
+                      : 'bg-white text-black border-2 border-black hover:bg-neutral-50'
+                  }`}
+                >
+                  <span>{catMeta.icon}</span>
+                  <span>{catMeta.label}</span>
+                  <span className="text-[10px] text-black/60 font-mono">({countInCat})</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Dropdowns & Toggle Row */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t-2 border-black/20 text-xs">
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Region Filter */}
-            <select
-              value={selectedRegion}
-              onChange={(e) => setSelectedRegion(e.target.value)}
-              className="bg-white border-2 border-black rounded-xl px-3 py-1.5 font-black text-black focus:outline-none shadow-[2px_2px_0px_#000000]"
-            >
-              <option value="all">🌍 {t('region_label')}</option>
-              {Object.entries(REGION_LABELS).map(([regKey, regMeta]) => (
-                <option key={regKey} value={regKey}>
-                  {regMeta.flag} {regMeta.label}
-                </option>
-              ))}
-            </select>
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t-2 border-black/20 text-xs">
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Regional Dialect Filter */}
+            <div className="flex items-center gap-1.5">
+              <label className="text-[11px] font-black font-cartoon text-black/70 hidden sm:inline">
+                Dialect:
+              </label>
+              <select
+                id="filter-region-select"
+                value={selectedRegion}
+                onChange={(e) => {
+                  sounds.playPop();
+                  setSelectedRegion(e.target.value);
+                }}
+                className={`bg-white border-2 border-black rounded-xl px-3 py-2 font-black text-black text-xs focus:outline-none shadow-[2px_2px_0px_#000000] cursor-pointer ${
+                  selectedRegion !== 'all' ? 'bg-[#FFFB96] ring-2 ring-black' : ''
+                }`}
+              >
+                <option value="all">🌍 All Regions / Dialects</option>
+                {Object.entries(REGION_LABELS).map(([regKey, regMeta]) => (
+                  <option key={regKey} value={regKey}>
+                    {regMeta.flag} {regMeta.label}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-            {/* Rarity Filter */}
-            <select
-              value={selectedRarity}
-              onChange={(e) => setSelectedRarity(e.target.value)}
-              className="bg-white border-2 border-black rounded-xl px-3 py-1.5 font-black text-black focus:outline-none shadow-[2px_2px_0px_#000000]"
-            >
-              <option value="all">⭐ {t('difficulty_label')}</option>
-              {Object.entries(RARITY_LABELS).map(([rarKey, rarMeta]) => (
-                <option key={rarKey} value={rarKey}>
-                  {rarMeta.label}
-                </option>
-              ))}
-            </select>
+            {/* Difficulty / Rarity Filter */}
+            <div className="flex items-center gap-1.5">
+              <label className="text-[11px] font-black font-cartoon text-black/70 hidden sm:inline">
+                Difficulty:
+              </label>
+              <select
+                id="filter-rarity-select"
+                value={selectedRarity}
+                onChange={(e) => {
+                  sounds.playPop();
+                  setSelectedRarity(e.target.value);
+                }}
+                className={`bg-white border-2 border-black rounded-xl px-3 py-2 font-black text-black text-xs focus:outline-none shadow-[2px_2px_0px_#000000] cursor-pointer ${
+                  selectedRarity !== 'all' ? 'bg-[#05FFA1] ring-2 ring-black' : ''
+                }`}
+              >
+                <option value="all">⭐ All Difficulty Levels</option>
+                {Object.entries(RARITY_LABELS).map(([rarKey, rarMeta]) => (
+                  <option key={rarKey} value={rarKey}>
+                    {rarMeta.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Reset Filter Button if any filter active */}
+            {hasActiveFilters && (
+              <button
+                onClick={handleResetFilters}
+                className="cartoon-btn-sm px-2.5 py-1.5 rounded-xl bg-neutral-200 hover:bg-neutral-300 text-black border-2 border-black font-black text-xs font-cartoon flex items-center gap-1 shadow-[1.5px_1.5px_0px_#000000]"
+                title="Reset all filters"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Reset</span>
+              </button>
+            )}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {/* Favorites Toggle */}
             <button
               onClick={() => {
                 sounds.playPop();
                 setShowOnlyFavorites(!showOnlyFavorites);
               }}
-              className={`flex items-center gap-1.5 font-black px-3 py-1.5 rounded-xl border-2 border-black font-cartoon ${
-                showOnlyFavorites ? 'bg-[#FFFB96] text-black shadow-[2px_2px_0px_#000000]' : 'bg-white text-black/70'
+              className={`flex items-center gap-1.5 font-black px-3 py-2 rounded-xl border-2 border-black font-cartoon text-xs transition-all ${
+                showOnlyFavorites ? 'bg-[#FFFB96] text-black shadow-[2px_2px_0px_#000000]' : 'bg-white text-black/70 hover:bg-neutral-50'
               }`}
             >
               <Bookmark className="w-3.5 h-3.5" />
@@ -225,8 +271,8 @@ export const LernenView: React.FC<Props> = ({ onPracticeSlang }) => {
                 sounds.playPop();
                 setShowOnlyFamilyFriendly(!showOnlyFamilyFriendly);
               }}
-              className={`flex items-center gap-1.5 font-black px-3 py-1.5 rounded-xl border-2 border-black font-cartoon ${
-                showOnlyFamilyFriendly ? 'bg-[#05FFA1] text-black shadow-[2px_2px_0px_#000000]' : 'bg-white text-black/70'
+              className={`flex items-center gap-1.5 font-black px-3 py-2 rounded-xl border-2 border-black font-cartoon text-xs transition-all ${
+                showOnlyFamilyFriendly ? 'bg-[#05FFA1] text-black shadow-[2px_2px_0px_#000000]' : 'bg-white text-black/70 hover:bg-neutral-50'
               }`}
             >
               <span>{t('filter_learned')}</span>
@@ -235,33 +281,132 @@ export const LernenView: React.FC<Props> = ({ onPracticeSlang }) => {
         </div>
       </div>
 
-      {/* Grid of Slang Cards */}
-      <div className="mb-4 flex items-center justify-between text-xs font-black text-black font-cartoon">
-        <span>{filteredWords.length} {t('nav_lexicon')}</span>
-        <span className="text-black/60 hidden sm:inline">{t('flip_card_hint')}</span>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filteredWords.map((slang) => (
-          <SlangCard
-            key={slang.id}
-            slang={slang}
-            onPractice={onPracticeSlang}
-          />
-        ))}
-      </div>
-
-      {filteredWords.length === 0 && (
-        <div className="cartoon-card bg-white rounded-3xl p-12 text-center border-4 border-black shadow-[6px_6px_0px_#000000] my-8">
-          <div className="text-4xl mb-2">🔍</div>
-          <h3 className="text-xl font-black text-black font-cartoon mb-1">
-            {t('no_results_title')}
+      {/* Initial State (Before searching or selecting filters) */}
+      {!hasActiveFilters && (
+        <div className="cartoon-card bg-white rounded-3xl p-8 sm:p-12 text-center border-4 border-black shadow-[6px_6px_0px_#000000] my-4">
+          <div className="text-5xl sm:text-6xl mb-3">🔍</div>
+          <h3 className="text-2xl sm:text-3xl font-black text-black font-cartoon mb-2 italic">
+            Search the Slang Dictionary
           </h3>
-          <p className="text-xs font-bold text-black/60">
-            {t('no_results_sub')}
+          <p className="text-sm font-bold text-black/70 max-w-lg mx-auto mb-6">
+            Type any word in the search box above, or select a <span className="text-black font-black underline">Category</span>, <span className="text-black font-black underline">Regional Dialect</span>, or <span className="text-black font-black underline">Difficulty Level</span> to discover authentic German street slang.
           </p>
+
+          {/* Quick Filter Starters */}
+          <div className="border-t-2 border-black/10 pt-5 max-w-md mx-auto">
+            <span className="text-[11px] font-black uppercase text-black/60 font-cartoon block mb-3">
+              ⚡ Quick Explore:
+            </span>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <button
+                onClick={() => {
+                  sounds.playPop();
+                  setSelectedRegion('berlin');
+                }}
+                className="cartoon-btn-sm px-3 py-1.5 rounded-xl bg-[#FFFB96] hover:bg-[#FFFB96]/80 text-black border-2 border-black font-black text-xs font-cartoon shadow-[2px_2px_0px_#000000]"
+              >
+                🐻 Berlin & Kiez
+              </button>
+              <button
+                onClick={() => {
+                  sounds.playPop();
+                  setSelectedRegion('bavaria');
+                }}
+                className="cartoon-btn-sm px-3 py-1.5 rounded-xl bg-[#01CDFE]/30 hover:bg-[#01CDFE]/50 text-black border-2 border-black font-black text-xs font-cartoon shadow-[2px_2px_0px_#000000]"
+              >
+                🥨 Bayern & München
+              </button>
+              <button
+                onClick={() => {
+                  sounds.playPop();
+                  setSelectedCategory('youth');
+                }}
+                className="cartoon-btn-sm px-3 py-1.5 rounded-xl bg-[#FF71CE]/30 hover:bg-[#FF71CE]/50 text-black border-2 border-black font-black text-xs font-cartoon shadow-[2px_2px_0px_#000000]"
+              >
+                🔥 Jugendsprache
+              </button>
+              <button
+                onClick={() => {
+                  sounds.playPop();
+                  setSelectedRarity('common');
+                }}
+                className="cartoon-btn-sm px-3 py-1.5 rounded-xl bg-[#05FFA1] hover:bg-[#05FFA1]/80 text-black border-2 border-black font-black text-xs font-cartoon shadow-[2px_2px_0px_#000000]"
+              >
+                ⭐ Alltäglich
+              </button>
+            </div>
+          </div>
         </div>
+      )}
+
+      {/* When Filters or Search are Active */}
+      {hasActiveFilters && (
+        <>
+          {/* Grid of Slang Cards Header */}
+          <div className="mb-4 flex items-center justify-between text-xs font-black text-black font-cartoon px-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="bg-black text-white px-2.5 py-1 rounded-lg">
+                {filteredWords.length} {filteredWords.length === 1 ? 'Word' : 'Words'} Found
+              </span>
+              {searchTerm && (
+                <span className="bg-[#FFFB96] border-2 border-black px-2 py-0.5 rounded-lg text-[11px]">
+                  Search: "{searchTerm}"
+                </span>
+              )}
+              {selectedCategory !== 'all' && (
+                <span className="bg-white border-2 border-black px-2 py-0.5 rounded-lg text-[11px]">
+                  Category: {CATEGORY_LABELS[selectedCategory]?.label}
+                </span>
+              )}
+              {selectedRegion !== 'all' && (
+                <span className="bg-[#FFFB96] border-2 border-black px-2 py-0.5 rounded-lg text-[11px]">
+                  Dialect: {REGION_LABELS[selectedRegion]?.label}
+                </span>
+              )}
+              {selectedRarity !== 'all' && (
+                <span className="bg-[#05FFA1] border-2 border-black px-2 py-0.5 rounded-lg text-[11px]">
+                  Level: {RARITY_LABELS[selectedRarity]?.label}
+                </span>
+              )}
+            </div>
+            <span className="text-black/60 hidden sm:inline">{t('flip_card_hint')}</span>
+          </div>
+
+          {/* Grid of Slang Cards */}
+          {filteredWords.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredWords.map((slang) => (
+                <SlangCard
+                  key={slang.id}
+                  slang={slang}
+                  onPractice={onPracticeSlang}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Empty Search Result State */}
+          {filteredWords.length === 0 && (
+            <div className="cartoon-card bg-white rounded-3xl p-10 sm:p-12 text-center border-4 border-black shadow-[6px_6px_0px_#000000] my-6">
+              <div className="text-5xl mb-3">🔍</div>
+              <h3 className="text-xl sm:text-2xl font-black text-black font-cartoon mb-2">
+                {t('no_results_title')}
+              </h3>
+              <p className="text-xs sm:text-sm font-bold text-black/70 max-w-md mx-auto mb-4">
+                No German slang words matched your active search query or filter combination.
+              </p>
+              <button
+                onClick={handleResetFilters}
+                className="cartoon-btn px-6 py-2.5 rounded-2xl bg-[#05FFA1] hover:bg-[#05FFA1]/80 text-black font-black text-xs font-cartoon inline-flex items-center gap-1.5 shadow-[3px_3px_0px_#000000]"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset All Filters</span>
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
 };
+

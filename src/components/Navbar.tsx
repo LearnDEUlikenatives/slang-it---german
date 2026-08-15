@@ -4,6 +4,7 @@ import { CartoonAvatar } from './CartoonAvatar';
 import { sounds } from '../utils/audio';
 import { useTranslation, LANGUAGES, Language } from '../utils/translations';
 import { TabType } from '../App';
+import AppLogoImg from '../assets/images/german_slang_logo_1786812856007.jpg';
 import {
   Flame,
   Crown,
@@ -63,15 +64,23 @@ export const Navbar: React.FC<Props> = ({ activeTab, onSelectTab }) => {
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b-4 border-black shadow-[0_4px_0_#000000]">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 flex items-center justify-between gap-2">
-        {/* Brand Logo - clean without pretzel */}
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 flex items-center justify-between gap-2">
+        {/* Brand Logo & Title */}
         <div
           onClick={() => {
             sounds.playPop();
             onSelectTab('home');
           }}
-          className="flex items-center gap-1.5 sm:gap-2 cursor-pointer select-none group shrink-0"
+          className="flex items-center gap-2 cursor-pointer select-none group shrink-0"
         >
+          <div className="relative">
+            <img
+              src={AppLogoImg}
+              alt="Slang It - German Logo"
+              referrerPolicy="no-referrer"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl border-2 border-black object-cover shadow-[2px_2px_0px_#000000] group-hover:scale-105 group-hover:rotate-2 transition-transform"
+            />
+          </div>
           <div className="flex items-center gap-1.5">
             <span className="font-black text-lg sm:text-2xl text-black font-cartoon tracking-tighter italic whitespace-nowrap">
               Slang It - German
