@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { SLANG_DATABASE } from '../data/slangDatabase';
 import { SlangWord } from '../types';
 import { speakGerman, sounds } from '../utils/audio';
+import { AdInterstitialModal } from './AdInterstitialModal';
 import { useGame } from '../context/GameContext';
 import { useTranslation, LANGUAGES } from '../utils/translations';
 import { getSlangMeaning } from '../utils/slangTranslations';
@@ -27,6 +28,8 @@ export const WiederholenView: React.FC = () => {
   const [isFlipped, setIsFlipped] = useState(false);
   const [knownCount, setKnownCount] = useState(0);
   const [repeatCount, setRepeatCount] = useState(0);
+  const [wordsRevisedCount, setWordsRevisedCount] = useState(0);
+  const [showRevisionAd, setShowRevisionAd] = useState(false);
   const [isDeckFinished, setIsDeckFinished] = useState(false);
 
   const currentCard = deck[currentIndex];
@@ -50,6 +53,14 @@ export const WiederholenView: React.FC = () => {
     } else {
       sounds.playWrong();
       setRepeatCount((prev) => prev + 1);
+    }
+
+    const nextRevised = wordsRevisedCount + 1;
+    setWordsRevisedCount(nextRevised);
+
+    // Display ad when player finishes revising 5 words under Revision
+    if (!profile.isPremium && nextRevised % 5 === 0) {
+      setShowRevisionAd(true);
     }
 
     setIsFlipped(false);
@@ -244,6 +255,14 @@ export const WiederholenView: React.FC = () => {
           <span>{t('know_it')}</span>
         </button>
       </div>
+
+      {/* Ad Display after revising 5 words */}
+      <AdInterstitialModal
+        isOpen={showRevisionAd}
+        onClose={() => setShowRevisionAd(false)}
+        countdownSeconds={5}
+        adContext="revision_5words"
+      />
     </div>
   );
 };

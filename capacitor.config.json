@@ -1,0 +1,12 @@
+{
+  "appId": "com.learngermanlikenatives.slangit",
+  "appName": "Slang It! German Slang",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "plugins": {
+    "AdMob": {
+      "appId": "ca-app-pub-4045089359333252~3927685995",
+      "testingDevices": []
+    }
+  }
+}

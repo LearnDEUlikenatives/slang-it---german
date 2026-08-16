@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Player, SlangWord } from '../types';
 import { SLANG_DATABASE } from '../data/slangDatabase';
 import { CartoonAvatar, AVATAR_LIST } from './CartoonAvatar';
+import { AdInterstitialModal } from './AdInterstitialModal';
 import { sounds } from '../utils/audio';
 import { useGame } from '../context/GameContext';
 import { useTranslation } from '../utils/translations';
@@ -49,6 +50,8 @@ export const PartyMode: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
   const [isGameOver, setIsGameOver] = useState(false);
+  const [showPartyStartAd, setShowPartyStartAd] = useState(false);
+  const [showPartyFinishAd, setShowPartyFinishAd] = useState(false);
 
   // Add new player to lobby
   const handleAddPlayer = () => {
@@ -94,6 +97,17 @@ export const PartyMode: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
         return { ...p, avatarId: defaultAvatars[nextIdx] };
       })
     );
+  };
+
+  // User clicks Start button in lobby
+  const handleStartPartyClick = () => {
+    sounds.playPop();
+    if (!profile.isPremium) {
+      // 5-sec Ad when players start playing under Party page
+      setShowPartyStartAd(true);
+    } else {
+      startPartyGame();
+    }
   };
 
   // Start Party Game (Direct Pass & Play)
@@ -194,6 +208,11 @@ export const PartyMode: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
     sounds.playLevelUp();
     recordPartyGame(true);
     addXP(150);
+
+    // Trigger Ad for free users upon finishing a round under Party
+    if (!profile.isPremium) {
+      setShowPartyFinishAd(true);
+    }
 
     try {
       confetti({
@@ -313,13 +332,24 @@ export const PartyMode: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
           <div className="flex items-center justify-end">
             <button
               id="start-party-match-btn"
-              onClick={startPartyGame}
+              onClick={handleStartPartyClick}
               className="cartoon-btn w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-[#05FFA1] hover:bg-[#05FFA1]/80 font-black text-base text-black font-cartoon flex items-center justify-center gap-2 shadow-[4px_4px_0px_#000000]"
             >
               <span>{t('start_party_btn')}</span>
               <Play className="w-5 h-5 fill-black" />
             </button>
           </div>
+
+          {/* 5-sec Ad when players start playing under Party page */}
+          <AdInterstitialModal
+            isOpen={showPartyStartAd}
+            onClose={() => {
+              setShowPartyStartAd(false);
+              startPartyGame();
+            }}
+            countdownSeconds={5}
+            adContext="party_start"
+          />
         </div>
       </div>
     );
@@ -400,6 +430,14 @@ export const PartyMode: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
               </button>
             )}
           </div>
+
+          {/* Ad Display for Free Users Upon Finishing a Party Match */}
+          <AdInterstitialModal
+            isOpen={showPartyFinishAd}
+            onClose={() => setShowPartyFinishAd(false)}
+            countdownSeconds={5}
+            adContext="party_finish"
+          />
         </div>
       </div>
     );

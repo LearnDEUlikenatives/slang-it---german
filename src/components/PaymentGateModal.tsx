@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { useGame } from '../context/GameContext';
 import { sounds } from '../utils/audio';
 import { useTranslation } from '../utils/translations';
-import { Crown, Check, X, Sparkles, Zap, Flame, ShieldCheck } from 'lucide-react';
+import { Crown, Check, X, Sparkles, Zap, Flame, ShieldCheck, Ban } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 export const PaymentGateModal: React.FC = () => {
   const { profile, updateProfile, showPaymentModal, setShowPaymentModal } = useGame();
   const { t } = useTranslation(profile.systemLanguage);
-  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'lifetime'>('monthly');
+  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'lifetime'>('lifetime');
   const [isSuccess, setIsSuccess] = useState(false);
 
   if (!showPaymentModal) return null;
@@ -52,10 +52,10 @@ export const PaymentGateModal: React.FC = () => {
               👑
             </div>
             <h3 className="text-3xl font-black text-black font-cartoon italic">
-              Welcome to VIP Club!
+              Welcome to Pro VIP Club!
             </h3>
             <p className="text-sm font-bold text-black/80 mt-2">
-              You now have unlimited access to all German slang terms, party modes, and dialect packs!
+              🎉 <strong>All ads are now permanently removed!</strong> You have unlimited access to all German slang terms, party modes, and dialect packs!
             </p>
           </div>
         ) : (
@@ -66,21 +66,25 @@ export const PaymentGateModal: React.FC = () => {
             </div>
 
             <h3 className="text-2xl sm:text-3xl font-black text-black font-cartoon italic">
-              VIP Pass Upgrade
+              Slang It! Pro Upgrade
             </h3>
 
-            {!profile.isPremium && (
-              <div className="mt-2 inline-block bg-[#FFFB96] border-2 border-black px-3 py-1 rounded-xl text-xs font-black text-black font-cartoon shadow-[2px_2px_0px_#000000]">
-                ⏳ {t('free_trial_remaining')} {minutesLeft}:{secondsLeft < 10 ? `0${secondsLeft}` : secondsLeft} {t('min_full_access')}
-              </div>
-            )}
+            {/* Ad-Free & VIP Banner */}
+            <div className="mt-2 inline-flex items-center gap-1.5 bg-[#05FFA1] border-2 border-black px-3 py-1 rounded-xl text-xs font-black text-black font-cartoon shadow-[2px_2px_0px_#000000]">
+              <Ban className="w-3.5 h-3.5 stroke-[3]" />
+              <span>100% Ad-Free Experience Guaranteed</span>
+            </div>
 
             <p className="text-xs font-bold text-black/80 mt-2">
-              Unlock the full German slang experience without limits for you and your friends!
+              Subscribe to Pro for $10 to eliminate all ad interruptions throughout the entire app and unlock unlimited party & dialect access!
             </p>
 
             {/* Perks List */}
             <div className="my-5 text-left space-y-2 bg-[#FFFB96]/40 p-4 rounded-2xl border-3 border-black text-xs font-bold text-black shadow-[3px_3px_0px_#000000]">
+              <div className="flex items-center gap-2 text-emerald-950 font-black">
+                <Check className="w-4 h-4 text-emerald-600 stroke-[4]" />
+                <span>🚫 Zero Ads: No video/interstitial ads in Play, Party, Dictionary or Revision</span>
+              </div>
               <div className="flex items-center gap-2">
                 <Check className="w-4 h-4 text-black stroke-[3]" />
                 <span>Unlimited Multiplayer & Buzzer Party rounds (2-8 players)</span>
@@ -105,55 +109,56 @@ export const PaymentGateModal: React.FC = () => {
                 type="button"
                 onClick={() => {
                   sounds.playPop();
-                  setSelectedPlan('monthly');
+                  setSelectedPlan('lifetime');
                 }}
-                className={`cartoon-card p-3 rounded-2xl text-left transition-all border-2 border-black ${
-                  selectedPlan === 'monthly'
-                    ? 'bg-[#FFFB96] ring-2 ring-black shadow-[4px_4px_0px_#000000]'
+                className={`cartoon-card p-3 rounded-2xl text-left transition-all relative border-2 border-black ${
+                  selectedPlan === 'lifetime'
+                    ? 'bg-[#05FFA1] ring-3 ring-black shadow-[4px_4px_0px_#000000]'
                     : 'bg-neutral-100 opacity-70'
                 }`}
               >
-                <span className="text-[10px] font-black uppercase text-black block font-cartoon">
-                  Monthly Pass
+                <span className="absolute -top-2.5 -right-2 bg-[#FF71CE] text-black font-black text-[9px] px-2 py-0.5 rounded-full border border-black font-cartoon animate-pulse">
+                  BEST VALUE
                 </span>
-                <span className="text-xl font-black text-black font-cartoon">€2.99</span>
-                <span className="text-[10px] text-black/70 font-bold block">/ month</span>
+                <span className="text-[10px] font-black uppercase text-black block font-cartoon">
+                  Pro Lifetime
+                </span>
+                <span className="text-2xl font-black text-black font-cartoon">$10</span>
+                <span className="text-[10px] text-black/70 font-bold block">One-time • No Ads</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => {
                   sounds.playPop();
-                  setSelectedPlan('lifetime');
+                  setSelectedPlan('monthly');
                 }}
-                className={`cartoon-card p-3 rounded-2xl text-left transition-all relative border-2 border-black ${
-                  selectedPlan === 'lifetime'
-                    ? 'bg-[#05FFA1] ring-2 ring-black shadow-[4px_4px_0px_#000000]'
+                className={`cartoon-card p-3 rounded-2xl text-left transition-all border-2 border-black ${
+                  selectedPlan === 'monthly'
+                    ? 'bg-[#FFFB96] ring-3 ring-black shadow-[4px_4px_0px_#000000]'
                     : 'bg-neutral-100 opacity-70'
                 }`}
               >
-                <span className="absolute -top-2 -right-2 bg-[#FF71CE] text-black font-black text-[9px] px-2 py-0.5 rounded-full border border-black font-cartoon">
-                  POPULAR
-                </span>
                 <span className="text-[10px] font-black uppercase text-black block font-cartoon">
-                  Ehrenmann Lifetime
+                  Monthly Pass
                 </span>
-                <span className="text-xl font-black text-black font-cartoon">€9.99</span>
-                <span className="text-[10px] text-black/70 font-bold block">One-time</span>
+                <span className="text-2xl font-black text-black font-cartoon">$2.99</span>
+                <span className="text-[10px] text-black/70 font-bold block">/ month • No Ads</span>
               </button>
             </div>
 
             {/* Action Upgrade Button */}
             <button
+              id="unlock-pro-btn"
               onClick={handleUpgrade}
-              className="cartoon-btn w-full py-4 rounded-2xl bg-[#05FFA1] hover:bg-[#05FFA1]/80 font-black text-base text-black font-cartoon flex items-center justify-center gap-2 border-3 border-black shadow-[4px_4px_0px_#000000]"
+              className="cartoon-btn w-full py-4 rounded-2xl bg-[#05FFA1] hover:bg-[#05FFA1]/80 font-black text-base text-black font-cartoon flex items-center justify-center gap-2 border-3 border-black shadow-[4px_4px_0px_#000000] active:scale-98 transition-transform"
             >
               <Zap className="w-5 h-5 fill-black text-black" />
-              <span>Unlock VIP Pass Now</span>
+              <span>{selectedPlan === 'lifetime' ? 'Get Pro for $10 (Remove Ads)' : 'Subscribe to Pro for $2.99/mo'}</span>
             </button>
 
             <p className="text-[10px] text-black/60 font-bold mt-3">
-              Cancel anytime • Instant access
+              One-click instant activation • Lifetime ad-free guarantee
             </p>
           </div>
         )}

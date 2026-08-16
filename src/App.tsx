@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { GameProvider } from './context/GameContext';
+import React, { useState, useEffect } from 'react';
+import { GameProvider, useGame } from './context/GameContext';
 import { Navbar } from './components/Navbar';
 import { LeftSidebarDrawer } from './components/LeftSidebarDrawer';
 import { MobileNav } from './components/MobileNav';
@@ -12,14 +12,25 @@ import { SettingsView } from './components/SettingsView';
 import { OnboardingModal } from './components/OnboardingModal';
 import { PaymentGateModal } from './components/PaymentGateModal';
 import { AuthModal } from './components/AuthModal';
+import { initializeAdMob, showGoogleAppOpenAd } from './services/admobService';
 import { SlangWord } from './types';
 
 export type TabType = 'home' | 'spielen' | 'party' | 'lernen' | 'wiederholen' | 'settings';
 
 function MainAppContent() {
+  const { profile } = useGame();
   const [activeTab, setActiveTab] = useState<TabType>('home');
   const [practiceWord, setPracticeWord] = useState<SlangWord | undefined>(undefined);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Initialize AdMob on app launch
+  useEffect(() => {
+    initializeAdMob(false).then(() => {
+      if (!profile.isPremium) {
+        showGoogleAppOpenAd(false);
+      }
+    });
+  }, [profile.isPremium]);
 
   const handlePracticeSlang = (slang: SlangWord) => {
     setPracticeWord(slang);
