@@ -1,8 +1,7 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { SLANG_DATABASE, CATEGORY_LABELS, REGION_LABELS, RARITY_LABELS } from '../data/slangDatabase';
 import { SlangWord } from '../types';
 import { SlangCard } from './SlangCard';
-import { AdInterstitialModal } from './AdInterstitialModal';
 import { sounds } from '../utils/audio';
 import { useGame } from '../context/GameContext';
 import { useTranslation, LANGUAGES } from '../utils/translations';
@@ -24,24 +23,6 @@ export const LernenView: React.FC<Props> = ({ onPracticeSlang }) => {
   const [selectedRarity, setSelectedRarity] = useState<string>('all');
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
   const [showOnlyFamilyFriendly, setShowOnlyFamilyFriendly] = useState(false);
-  const [showDictionaryAd, setShowDictionaryAd] = useState(false);
-  const hasTriggeredAdRef = useRef(false);
-
-  // Trigger ad when user spends extended time (60 seconds) on dictionary page (throttled by global cooldown)
-  useEffect(() => {
-    if (profile.isPremium || hasTriggeredAdRef.current) return;
-
-    const timer = setTimeout(() => {
-      if (!profile.isPremium && !hasTriggeredAdRef.current) {
-        hasTriggeredAdRef.current = true;
-        setShowDictionaryAd(true);
-      }
-    }, 60000); // 60 seconds
-
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [profile.isPremium]);
 
   // Clear all active filters
   const handleResetFilters = () => {
@@ -425,14 +406,6 @@ export const LernenView: React.FC<Props> = ({ onPracticeSlang }) => {
           )}
         </>
       )}
-
-      {/* 20-Second Dictionary Dwell Ad */}
-      <AdInterstitialModal
-        isOpen={showDictionaryAd}
-        onClose={() => setShowDictionaryAd(false)}
-        countdownSeconds={5}
-        adContext="dictionary_20s"
-      />
     </div>
   );
 };

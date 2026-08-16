@@ -12,7 +12,7 @@ import { SettingsView } from './components/SettingsView';
 import { OnboardingModal } from './components/OnboardingModal';
 import { PaymentGateModal } from './components/PaymentGateModal';
 import { AuthModal } from './components/AuthModal';
-import { initializeAdMob, showGoogleAppOpenAd } from './services/admobService';
+import { initializeAdMob } from './services/admobService';
 import { SlangWord } from './types';
 
 export type TabType = 'home' | 'spielen' | 'party' | 'lernen' | 'wiederholen' | 'settings';

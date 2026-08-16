@@ -1,23 +1,38 @@
 /**
  * Google AdMob Integration Service
  * Configured with official AdMob App ID & Ad Unit IDs.
- * Includes global cooldown throttling (minimum 90s between ads) to prevent spam & screen flickering.
+ * Features:
+ * - Proactive Background Pre-caching (Zero-delay instant ad display, eliminates white screens & loading lag)
+ * - Automatic re-buffering after dismissal
+ * - Frequency cooldown protection (avoids spamming players)
  */
 
 export const ADMOB_CONFIG = {
   APP_ID: 'ca-app-pub-4045089359333252~3927685995',
   INTERSTITIAL_AD_UNIT_ID: 'ca-app-pub-4045089359333252/9100121622',
   APP_OPEN_AD_UNIT_ID: 'ca-app-pub-4045089359333252/8011089596',
-  // Minimum time between interstitial ads (in ms) to protect user experience & avoid spam
-  MIN_AD_INTERVAL_MS: 75000, // 75 seconds cooldown
+  // Minimum time between interstitial ads (60 seconds cooldown)
+  MIN_AD_INTERVAL_MS: 60000,
 };
 
 let isInitialized = false;
-let lastAdTimestamp = 0;
+let isAdLoaded = false;
+let isLoadingAd = false;
 let isAdShowing = false;
+let lastAdTimestamp = 0;
 
 /**
- * Check if sufficient time has passed since the last ad was shown
+ * Checks if AdMob is running in native Capacitor environment
+ */
+export function isNativeAdMobAvailable(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    Boolean((window as any).Capacitor?.isPluginAvailable?.('AdMob'))
+  );
+}
+
+/**
+ * Check if cooldown window has passed
  */
 export function canShowAd(): boolean {
   if (isAdShowing) return false;
@@ -26,25 +41,66 @@ export function canShowAd(): boolean {
 }
 
 /**
- * Initializes AdMob SDK if running in a native wrapper
+ * Preloads the interstitial ad into device memory in the background.
+ * This completely eliminates loading delays, flickering, and white screens.
+ */
+export async function preloadInterstitialAd(isTesting = false): Promise<void> {
+  if (!isNativeAdMobAvailable() || isAdLoaded || isLoadingAd) return;
+
+  try {
+    isLoadingAd = true;
+    const { AdMob } = (window as any).Capacitor.Plugins;
+    await AdMob.prepareInterstitial({
+      adId: ADMOB_CONFIG.INTERSTITIAL_AD_UNIT_ID,
+      isTesting,
+    });
+    isAdLoaded = true;
+    isLoadingAd = false;
+    console.log('✅ Google AdMob Interstitial pre-cached in memory (Instant Ready).');
+  } catch (error) {
+    console.warn('AdMob background preload error:', error);
+    isAdLoaded = false;
+    isLoadingAd = false;
+  }
+}
+
+/**
+ * Initializes AdMob SDK and begins pre-caching the first ad immediately.
  */
 export async function initializeAdMob(isTesting = false): Promise<void> {
   if (isInitialized) return;
 
   try {
-    if (typeof window !== 'undefined' && (window as any).Capacitor?.isPluginAvailable?.('AdMob')) {
+    if (isNativeAdMobAvailable()) {
       const { AdMob } = (window as any).Capacitor.Plugins;
+      
       await AdMob.initialize({
         initializeForTesting: isTesting,
       });
-      isInitialized = true;
-      console.log('✅ Google AdMob Native Plugin initialized.');
-      return;
-    }
 
-    if (typeof window !== 'undefined' && (window as any).admob) {
+      // Register native event listeners for lifecycle
+      try {
+        AdMob.addListener('interstitialAdDismissed', () => {
+          isAdLoaded = false;
+          isAdShowing = false;
+          lastAdTimestamp = Date.now();
+          // Silently buffer the next ad in background
+          setTimeout(() => preloadInterstitialAd(isTesting), 2000);
+        });
+
+        AdMob.addListener('interstitialAdFailedToLoad', () => {
+          isAdLoaded = false;
+          isLoadingAd = false;
+        });
+      } catch (listenerErr) {
+        // Safe fallback if listeners not supported in current version
+      }
+
       isInitialized = true;
-      console.log('✅ Google AdMob Cordova Plugin detected.');
+      console.log('✅ Google AdMob Native SDK initialized.');
+
+      // Pre-load the first ad silently right now so it is ready when needed
+      preloadInterstitialAd(isTesting);
       return;
     }
 
@@ -55,59 +111,49 @@ export async function initializeAdMob(isTesting = false): Promise<void> {
 }
 
 /**
- * Shows Google Interstitial Ad with built-in cooldown check.
- * Returns true if an ad was displayed natively.
+ * Displays the pre-cached Google Interstitial Ad instantly with 0ms delay.
+ * Returns true if displayed natively, false if falling back or on cooldown.
  */
 export async function showGoogleInterstitialAd(isTesting = false): Promise<boolean> {
   if (!canShowAd()) {
-    console.info('AdMob: Ad skipped due to frequency throttling cooldown.');
+    console.info('AdMob: Skipped due to cooldown frequency cap.');
     return false;
   }
 
-  try {
-    const adUnitId = ADMOB_CONFIG.INTERSTITIAL_AD_UNIT_ID;
+  // 1. Native Capacitor AdMob
+  if (isNativeAdMobAvailable()) {
+    const { AdMob } = (window as any).Capacitor.Plugins;
+    isAdShowing = true;
 
-    // 1. Capacitor Native AdMob integration
-    if (typeof window !== 'undefined' && (window as any).Capacitor?.isPluginAvailable?.('AdMob')) {
-      const { AdMob } = (window as any).Capacitor.Plugins;
-      isAdShowing = true;
-      await AdMob.prepareInterstitial({
-        adId: adUnitId,
-        isTesting,
-      });
+    try {
+      // If not pre-cached yet, load quickly
+      if (!isAdLoaded) {
+        await AdMob.prepareInterstitial({
+          adId: ADMOB_CONFIG.INTERSTITIAL_AD_UNIT_ID,
+          isTesting,
+        });
+      }
+
       await AdMob.showInterstitial();
-      lastAdTimestamp = Date.now();
+      isAdLoaded = false;
       isAdShowing = false;
-      return true;
-    }
-
-    // 2. Cordova Native Bridge
-    if (typeof window !== 'undefined' && (window as any).admob?.interstitial) {
-      isAdShowing = true;
-      await new Promise<void>((resolve) => {
-        (window as any).admob.interstitial.load({ id: adUnitId });
-        (window as any).admob.interstitial.show();
-        resolve();
-      });
       lastAdTimestamp = Date.now();
-      isAdShowing = false;
+      // Silently pre-load the next ad in background
+      setTimeout(() => preloadInterstitialAd(isTesting), 2000);
       return true;
+    } catch (err) {
+      console.warn('Native AdMob display error:', err);
+      isAdShowing = false;
+      isAdLoaded = false;
+      // Re-trigger preload for future attempts
+      setTimeout(() => preloadInterstitialAd(isTesting), 3000);
+      return false;
     }
-
-    // Web fallback
-    lastAdTimestamp = Date.now();
-    return false;
-  } catch (error) {
-    console.error('Error invoking Google AdMob Interstitial:', error);
-    isAdShowing = false;
-    return false;
   }
-}
 
-/**
- * App Open Ad helper (safely suppressed if fresh boot)
- */
-export async function showGoogleAppOpenAd(isTesting = false): Promise<boolean> {
+  // 2. Web fallback cooldown tracking
+  lastAdTimestamp = Date.now();
   return false;
 }
+
 

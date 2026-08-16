@@ -2,15 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useGame } from '../context/GameContext';
 import { sounds } from '../utils/audio';
 import { useTranslation } from '../utils/translations';
-import { showGoogleInterstitialAd, canShowAd, ADMOB_CONFIG } from '../services/admobService';
+import { showGoogleInterstitialAd, canShowAd, isNativeAdMobAvailable, ADMOB_CONFIG } from '../services/admobService';
 import { Crown, Sparkles, X, Volume2, ExternalLink, Zap, ShieldCheck } from 'lucide-react';
 
 export type AdContextType =
   | 'play_finish'
-  | 'party_start'
   | 'party_finish'
   | 'dictionary_time'
-  | 'revision_5words';
+  | 'revision_12words';
 
 interface Props {
   isOpen: boolean;
@@ -97,25 +96,24 @@ export const AdInterstitialModal: React.FC<Props> = ({
   const [canSkip, setCanSkip] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Trigger native Google AdMob interstitial or start fallback timer
+  // Trigger native Google AdMob or fallback web countdown
   useEffect(() => {
     if (isOpen && !profile.isPremium) {
-      // If cooldown is active, skip ad completely
+      // Cooldown check
       if (!canShowAd()) {
         onClose();
         return;
       }
 
-      let isMounted = true;
-
-      // Attempt native Google AdMob SDK trigger
-      showGoogleInterstitialAd().then((shownNatively) => {
-        if (shownNatively && isMounted) {
+      // 1. If running natively in Android APK, fire the pre-cached Native Ad instantly
+      if (isNativeAdMobAvailable()) {
+        showGoogleInterstitialAd().finally(() => {
           onClose();
-          return;
-        }
-      });
+        });
+        return;
+      }
 
+      // 2. Web browser fallback: Start clean visual countdown
       const randomIdx = Math.floor(Math.random() * SPONSORS.length);
       setSponsorIndex(randomIdx);
       setSecondsRemaining(countdownSeconds);
@@ -134,7 +132,6 @@ export const AdInterstitialModal: React.FC<Props> = ({
       }, 1000);
 
       return () => {
-        isMounted = false;
         if (timerRef.current) clearInterval(timerRef.current);
       };
     } else {
@@ -142,8 +139,8 @@ export const AdInterstitialModal: React.FC<Props> = ({
     }
   }, [isOpen, countdownSeconds, profile.isPremium, onClose]);
 
-  // If user is Pro / Premium, never display any ad
-  if (!isOpen || profile.isPremium) return null;
+  // If user is Pro, modal is closed, or native AdMob is handling the display natively:
+  if (!isOpen || profile.isPremium || isNativeAdMobAvailable()) return null;
 
   const currentSponsor = SPONSORS[sponsorIndex] || SPONSORS[0];
 
@@ -158,6 +155,7 @@ export const AdInterstitialModal: React.FC<Props> = ({
     onClose();
     setShowPaymentModal(true);
   };
+
 
   const getContextBadge = () => {
     switch (adContext) {

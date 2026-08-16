@@ -50,7 +50,6 @@ export const PartyMode: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
   const [isGameOver, setIsGameOver] = useState(false);
-  const [showPartyStartAd, setShowPartyStartAd] = useState(false);
   const [showPartyFinishAd, setShowPartyFinishAd] = useState(false);
 
   // Add new player to lobby
@@ -99,15 +98,10 @@ export const PartyMode: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
     );
   };
 
-  // User clicks Start button in lobby
+  // User clicks Start button in lobby - launches game directly with zero friction
   const handleStartPartyClick = () => {
     sounds.playPop();
-    if (!profile.isPremium) {
-      // 5-sec Ad when players start playing under Party page
-      setShowPartyStartAd(true);
-    } else {
-      startPartyGame();
-    }
+    startPartyGame();
   };
 
   // Start Party Game (Direct Pass & Play)
@@ -339,17 +333,6 @@ export const PartyMode: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
               <Play className="w-5 h-5 fill-black" />
             </button>
           </div>
-
-          {/* 5-sec Ad when players start playing under Party page */}
-          <AdInterstitialModal
-            isOpen={showPartyStartAd}
-            onClose={() => {
-              setShowPartyStartAd(false);
-              startPartyGame();
-            }}
-            countdownSeconds={5}
-            adContext="party_start"
-          />
         </div>
       </div>
     );

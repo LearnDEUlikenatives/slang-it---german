@@ -55,14 +55,7 @@ export const WiederholenView: React.FC = () => {
       setRepeatCount((prev) => prev + 1);
     }
 
-    const nextRevised = wordsRevisedCount + 1;
-    setWordsRevisedCount(nextRevised);
-
-    // Display ad when player finishes revising a set of 12 words under Revision (throttled by cooldown)
-    if (!profile.isPremium && nextRevised % 12 === 0) {
-      setShowRevisionAd(true);
-    }
-
+    setWordsRevisedCount((prev) => prev + 1);
     setIsFlipped(false);
     const nextIdx = currentIndex + 1;
     if (nextIdx >= deck.length) {
@@ -78,6 +71,11 @@ export const WiederholenView: React.FC = () => {
     const xpGained = knownCount * 30 + 100;
     addXP(xpGained);
     recordGameResult(knownCount, deck.length, deck.slice(0, knownCount).map((d) => d.id));
+
+    // Show ad upon finishing a revision flashcard set
+    if (!profile.isPremium) {
+      setShowRevisionAd(true);
+    }
 
     try {
       confetti({
