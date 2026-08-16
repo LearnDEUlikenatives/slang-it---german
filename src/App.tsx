@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { GameProvider, useGame } from './context/GameContext';
 import { Navbar } from './components/Navbar';
 import { LeftSidebarDrawer } from './components/LeftSidebarDrawer';
@@ -14,19 +14,123 @@ import { PaymentGateModal } from './components/PaymentGateModal';
 import { AuthModal } from './components/AuthModal';
 import { initializeAdMob } from './services/admobService';
 import { SlangWord } from './types';
+import { App as CapacitorApp } from '@capacitor/app';
 
 export type TabType = 'home' | 'spielen' | 'party' | 'lernen' | 'wiederholen' | 'settings';
 
 function MainAppContent() {
-  const { profile } = useGame();
+  const { profile, showPaymentModal, setShowPaymentModal, isAuthModalOpen, closeAuthModal } = useGame();
   const [activeTab, setActiveTab] = useState<TabType>('home');
   const [practiceWord, setPracticeWord] = useState<SlangWord | undefined>(undefined);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const gameScreenBackRef = useRef<(() => boolean) | null>(null);
+  const partyScreenBackRef = useRef<(() => boolean) | null>(null);
+
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+
+  const isSidebarOpenRef = useRef(isSidebarOpen);
+  isSidebarOpenRef.current = isSidebarOpen;
+
+  const showPaymentModalRef = useRef(showPaymentModal);
+  showPaymentModalRef.current = showPaymentModal;
+
+  const isAuthModalOpenRef = useRef(isAuthModalOpen);
+  isAuthModalOpenRef.current = isAuthModalOpen;
 
   // Initialize AdMob smoothly on app launch
   useEffect(() => {
     initializeAdMob(false);
   }, []);
+
+  // Handle Android Hardware / Gesture Back Button
+  useEffect(() => {
+    // Only bind in native mobile Capacitor environments
+    const isNative = typeof window !== 'undefined' && Boolean((window as any).Capacitor?.isNativePlatform?.());
+    if (!isNative) return;
+
+    let isMounted = true;
+    let listenerHandle: { remove: () => Promise<void> | void } | null = null;
+
+    try {
+      CapacitorApp.addListener('backButton', () => {
+        // 1. Close sidebar if open
+        if (isSidebarOpenRef.current) {
+          setIsSidebarOpen(false);
+          return;
+        }
+
+        // 2. Close modals if open
+        if (showPaymentModalRef.current) {
+          setShowPaymentModal(false);
+          return;
+        }
+        if (isAuthModalOpenRef.current) {
+          closeAuthModal();
+          return;
+        }
+
+        // 3. If in 'spielen' tab:
+        if (activeTabRef.current === 'spielen') {
+          if (gameScreenBackRef.current && gameScreenBackRef.current()) {
+            return; // Handled: returned to Play config/start screen
+          }
+          setPracticeWord(undefined);
+          setActiveTab('home');
+          return;
+        }
+
+        // 4. If in 'party' tab:
+        if (activeTabRef.current === 'party') {
+          if (partyScreenBackRef.current && partyScreenBackRef.current()) {
+            return; // Handled: returned to Party lobby
+          }
+          setActiveTab('home');
+          return;
+        }
+
+        // 5. If in any other sub-tab (lernen, wiederholen, settings), return to home:
+        if (activeTabRef.current !== 'home') {
+          setPracticeWord(undefined);
+          setActiveTab('home');
+          return;
+        }
+
+        // 6. Already at home: exit app gracefully
+        try {
+          CapacitorApp.exitApp();
+        } catch (exitErr) {
+          console.warn('Could not exit app', exitErr);
+        }
+      })
+        .then((handle) => {
+          if (isMounted) {
+            listenerHandle = handle;
+          } else if (handle && typeof handle.remove === 'function') {
+            try {
+              handle.remove();
+            } catch {}
+          }
+        })
+        .catch((err) => {
+          console.warn('Could not register backButton listener', err);
+        });
+    } catch (err) {
+      console.warn('Error setting up backButton listener', err);
+    }
+
+    return () => {
+      isMounted = false;
+      if (listenerHandle && typeof listenerHandle.remove === 'function') {
+        try {
+          listenerHandle.remove();
+        } catch (e) {
+          console.warn('Error removing backButton listener', e);
+        }
+      }
+    };
+  }, [closeAuthModal, setShowPaymentModal]);
 
   const handlePracticeSlang = (slang: SlangWord) => {
     setPracticeWord(slang);
@@ -72,11 +176,19 @@ function MainAppContent() {
           <GameScreen
             preselectedSlang={practiceWord}
             onBackToMenu={() => setActiveTab('home')}
+            registerBackHandler={(handler) => {
+              gameScreenBackRef.current = handler;
+            }}
           />
         )}
 
         {activeTab === 'party' && (
-          <PartyMode onBackToMenu={() => setActiveTab('home')} />
+          <PartyMode
+            onBackToMenu={() => setActiveTab('home')}
+            registerBackHandler={(handler) => {
+              partyScreenBackRef.current = handler;
+            }}
+          />
         )}
 
         {activeTab === 'lernen' && (

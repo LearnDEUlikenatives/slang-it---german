@@ -20,19 +20,35 @@ export const WiederholenView: React.FC = () => {
   const { t } = useTranslation(profile.systemLanguage);
   const currentLangObj = LANGUAGES.find((l) => l.code === profile.systemLanguage) || LANGUAGES[0];
 
-  const [deck, setDeck] = useState<SlangWord[]>(() => {
-    return [...SLANG_DATABASE].sort(() => Math.random() - 0.5);
-  });
+  // Daily goal based deck size (3, 5, or 10 cards)
+  const initialGoalSize = [3, 5, 10].includes(profile.dailyGoal) ? profile.dailyGoal : 5;
+  const [sessionCardCount, setSessionCardCount] = useState<number>(initialGoalSize);
 
+  const buildDeck = (count: number): SlangWord[] => {
+    const shuffled = [...SLANG_DATABASE].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, count);
+  };
+
+  const [deck, setDeck] = useState<SlangWord[]>(() => buildDeck(initialGoalSize));
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [knownCount, setKnownCount] = useState(0);
   const [repeatCount, setRepeatCount] = useState(0);
-  const [wordsRevisedCount, setWordsRevisedCount] = useState(0);
   const [showRevisionAd, setShowRevisionAd] = useState(false);
   const [isDeckFinished, setIsDeckFinished] = useState(false);
 
   const currentCard = deck[currentIndex];
+
+  const handleCardCountChange = (count: number) => {
+    sounds.playPop();
+    setSessionCardCount(count);
+    setDeck(buildDeck(count));
+    setCurrentIndex(0);
+    setIsFlipped(false);
+    setKnownCount(0);
+    setRepeatCount(0);
+    setIsDeckFinished(false);
+  };
 
   const handleFlip = () => {
     sounds.playPop();
@@ -55,24 +71,23 @@ export const WiederholenView: React.FC = () => {
       setRepeatCount((prev) => prev + 1);
     }
 
-    setWordsRevisedCount((prev) => prev + 1);
     setIsFlipped(false);
     const nextIdx = currentIndex + 1;
     if (nextIdx >= deck.length) {
-      finishDeck();
+      finishDeck(known ? knownCount + 1 : knownCount);
     } else {
       setCurrentIndex(nextIdx);
     }
   };
 
-  const finishDeck = () => {
+  const finishDeck = (finalKnownCount: number) => {
     setIsDeckFinished(true);
     sounds.playLevelUp();
-    const xpGained = knownCount * 30 + 100;
+    const xpGained = finalKnownCount * 30 + 100;
     addXP(xpGained);
-    recordGameResult(knownCount, deck.length, deck.slice(0, knownCount).map((d) => d.id));
+    recordGameResult(finalKnownCount, deck.length, deck.slice(0, finalKnownCount).map((d) => d.id));
 
-    // Show ad upon finishing a revision flashcard set
+    // Show ad immediately right after completing the revision cards
     if (!profile.isPremium) {
       setShowRevisionAd(true);
     }
@@ -88,7 +103,7 @@ export const WiederholenView: React.FC = () => {
 
   const restartDeck = () => {
     sounds.playPop();
-    setDeck([...SLANG_DATABASE].sort(() => Math.random() - 0.5));
+    setDeck(buildDeck(sessionCardCount));
     setCurrentIndex(0);
     setIsFlipped(false);
     setKnownCount(0);
@@ -131,9 +146,17 @@ export const WiederholenView: React.FC = () => {
             className="cartoon-btn w-full py-3.5 rounded-2xl bg-[#05FFA1] hover:bg-[#05FFA1]/80 font-black text-black font-cartoon flex items-center justify-center gap-2 shadow-[4px_4px_0px_#000000] border-3 border-black"
           >
             <RotateCcw className="w-4 h-4" />
-            <span>{t('restart_deck')}</span>
+            <span>{t('restart_deck')} ({sessionCardCount} {t('cards') || 'Cards'})</span>
           </button>
         </div>
+
+        {/* Ad display immediately on finish */}
+        <AdInterstitialModal
+          isOpen={showRevisionAd}
+          onClose={() => setShowRevisionAd(false)}
+          countdownSeconds={5}
+          adContext="revision_deck"
+        />
       </div>
     );
   }
@@ -142,8 +165,8 @@ export const WiederholenView: React.FC = () => {
 
   return (
     <div id="wiederholen-view" className="max-w-2xl mx-auto py-4 px-3 sm:px-6">
-      {/* Header & Progress */}
-      <div className="flex items-center justify-between gap-3 mb-4">
+      {/* Header & Goal Selector */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-2">
           <div className="w-10 h-10 rounded-2xl bg-[#B967FF] border-3 border-black flex items-center justify-center text-white text-xl shadow-[2px_2px_0px_#000000]">
             🧠
@@ -158,10 +181,35 @@ export const WiederholenView: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="bg-[#FFFB96] border-2 border-black px-3 py-1 rounded-xl text-xs font-black text-black font-cartoon shadow-[2px_2px_0px_#000000]">
-            {t('card_progress', { current: currentIndex + 1, total: deck.length })}
-          </span>
+        {/* 3, 5, 10 Card Batch Selector */}
+        <div className="flex items-center gap-1.5 self-start sm:self-auto bg-white p-1 rounded-2xl border-2 border-black shadow-[2px_2px_0px_#000000]">
+          <span className="text-[10px] font-black text-black px-2 uppercase font-cartoon">Deck:</span>
+          {[3, 5, 10].map((num) => (
+            <button
+              key={num}
+              onClick={() => handleCardCountChange(num)}
+              className={`px-2.5 py-1 rounded-xl text-xs font-black font-cartoon transition-all border border-black ${
+                sessionCardCount === num
+                  ? 'bg-[#05FFA1] shadow-[2px_2px_0px_#000000]'
+                  : 'bg-neutral-100 opacity-60 hover:opacity-100'
+              }`}
+            >
+              {num}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Progress Indicator */}
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <span className="bg-[#FFFB96] border-2 border-black px-3 py-1 rounded-xl text-xs font-black text-black font-cartoon shadow-[2px_2px_0px_#000000]">
+          {t('card_progress', { current: currentIndex + 1, total: deck.length })}
+        </span>
+        <div className="flex-1 max-w-[200px] h-3 bg-white rounded-full border-2 border-black overflow-hidden shadow-[1px_1px_0px_#000000]">
+          <div
+            className="h-full bg-[#05FFA1] transition-all duration-300"
+            style={{ width: `${((currentIndex + 1) / deck.length) * 100}%` }}
+          />
         </div>
       </div>
 
@@ -253,14 +301,6 @@ export const WiederholenView: React.FC = () => {
           <span>{t('know_it')}</span>
         </button>
       </div>
-
-      {/* Ad Display after revising 5 words */}
-      <AdInterstitialModal
-        isOpen={showRevisionAd}
-        onClose={() => setShowRevisionAd(false)}
-        countdownSeconds={5}
-        adContext="revision_5words"
-      />
     </div>
   );
 };

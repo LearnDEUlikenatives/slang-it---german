@@ -36,14 +36,25 @@ export const PaymentGateModal: React.FC = () => {
   const secondsLeft = profile.trialSecondsRemaining % 60;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-pop">
-      <div className="cartoon-card-lg bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full relative overflow-hidden text-center border-4 border-black shadow-[8px_8px_0px_#000000]">
-        {/* Close Button */}
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-pop"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          setShowPaymentModal(false);
+        }
+      }}
+    >
+      <div className="cartoon-card-lg bg-white rounded-3xl p-5 sm:p-7 max-w-lg w-full max-h-[92vh] overflow-y-auto relative text-center border-4 border-black shadow-[8px_8px_0px_#000000]">
+        {/* Prominent Sticky Top Close Button */}
         <button
-          onClick={() => setShowPaymentModal(false)}
-          className="absolute top-4 right-4 w-9 h-9 rounded-xl border-2 border-black flex items-center justify-center bg-neutral-100 hover:bg-neutral-200 shadow-[2px_2px_0px_#000000]"
+          onClick={() => {
+            sounds.playPop();
+            setShowPaymentModal(false);
+          }}
+          aria-label="Close modal"
+          className="absolute top-3 right-3 z-30 w-10 h-10 rounded-2xl border-3 border-black flex items-center justify-center bg-[#FF71CE] hover:bg-[#FF71CE]/80 text-black shadow-[2px_2px_0px_#000000] active:scale-95 transition-transform"
         >
-          <X className="w-5 h-5 text-black" />
+          <X className="w-6 h-6 stroke-[3]" />
         </button>
 
         {isSuccess ? (
@@ -59,9 +70,9 @@ export const PaymentGateModal: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div>
+          <div className="pt-2">
             {/* Header Crown */}
-            <div className="w-16 h-16 mx-auto rounded-3xl bg-[#FFFB96] border-3 border-black flex items-center justify-center text-3xl mb-3 shadow-[3px_3px_0px_#000000]">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 mx-auto rounded-3xl bg-[#FFFB96] border-3 border-black flex items-center justify-center text-3xl mb-2 shadow-[3px_3px_0px_#000000]">
               👑
             </div>
 
@@ -80,7 +91,7 @@ export const PaymentGateModal: React.FC = () => {
             </p>
 
             {/* Perks List */}
-            <div className="my-5 text-left space-y-2 bg-[#FFFB96]/40 p-4 rounded-2xl border-3 border-black text-xs font-bold text-black shadow-[3px_3px_0px_#000000]">
+            <div className="my-4 text-left space-y-2 bg-[#FFFB96]/40 p-3.5 rounded-2xl border-3 border-black text-xs font-bold text-black shadow-[3px_3px_0px_#000000]">
               <div className="flex items-center gap-2 text-emerald-950 font-black">
                 <Check className="w-4 h-4 text-emerald-600 stroke-[4]" />
                 <span>🚫 Zero Ads: No video/interstitial ads in Play, Party, Dictionary or Revision</span>
@@ -104,7 +115,7 @@ export const PaymentGateModal: React.FC = () => {
             </div>
 
             {/* Pricing Options */}
-            <div className="grid grid-cols-2 gap-3 mb-5">
+            <div className="grid grid-cols-2 gap-3 mb-4">
               <button
                 type="button"
                 onClick={() => {
@@ -151,13 +162,25 @@ export const PaymentGateModal: React.FC = () => {
             <button
               id="unlock-pro-btn"
               onClick={handleUpgrade}
-              className="cartoon-btn w-full py-4 rounded-2xl bg-[#05FFA1] hover:bg-[#05FFA1]/80 font-black text-base text-black font-cartoon flex items-center justify-center gap-2 border-3 border-black shadow-[4px_4px_0px_#000000] active:scale-98 transition-transform"
+              className="cartoon-btn w-full py-3.5 rounded-2xl bg-[#05FFA1] hover:bg-[#05FFA1]/80 font-black text-base text-black font-cartoon flex items-center justify-center gap-2 border-3 border-black shadow-[4px_4px_0px_#000000] active:scale-98 transition-transform"
             >
               <Zap className="w-5 h-5 fill-black text-black" />
               <span>{selectedPlan === 'lifetime' ? 'Get Pro for $10 (Remove Ads)' : 'Subscribe to Pro for $2.99/mo'}</span>
             </button>
 
-            <p className="text-[10px] text-black/60 font-bold mt-3">
+            {/* Clear Dismiss / Free Mode Button */}
+            <button
+              type="button"
+              onClick={() => {
+                sounds.playPop();
+                setShowPaymentModal(false);
+              }}
+              className="mt-3 text-xs font-black text-black/70 hover:text-black underline block w-full py-1 text-center font-cartoon"
+            >
+              ✕ Maybe Later (Continue Free with Ads)
+            </button>
+
+            <p className="text-[10px] text-black/60 font-bold mt-2">
               One-click instant activation • Lifetime ad-free guarantee
             </p>
           </div>

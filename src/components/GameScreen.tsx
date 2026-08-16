@@ -31,9 +31,10 @@ import confetti from 'canvas-confetti';
 interface Props {
   onBackToMenu?: () => void;
   preselectedSlang?: SlangWord | null;
+  registerBackHandler?: (handler: (() => boolean) | null) => void;
 }
 
-export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang }) => {
+export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, registerBackHandler }) => {
   const { profile, addXP, recordGameResult, recordVoiceGuess, setShowPaymentModal } = useGame();
   const { t } = useTranslation(profile.systemLanguage);
 
@@ -82,12 +83,25 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang }) 
     };
   }, []);
 
-  // Check trial
+  // Register Android back button handler
   useEffect(() => {
-    if (!profile.isPremium && profile.trialSecondsRemaining <= 0) {
-      setShowPaymentModal(true);
+    if (registerBackHandler) {
+      registerBackHandler(() => {
+        if (!isConfiguring) {
+          sounds.playPop();
+          if (timerRef.current) clearInterval(timerRef.current);
+          if (autoNextTimeoutRef.current) clearTimeout(autoNextTimeoutRef.current);
+          setIsConfiguring(true);
+          setIsGameOver(false);
+          return true; // handled, stopped active game and went to play config screen
+        }
+        return false; // let App.tsx return to home
+      });
     }
-  }, [profile.isPremium, profile.trialSecondsRemaining, setShowPaymentModal]);
+    return () => {
+      if (registerBackHandler) registerBackHandler(null);
+    };
+  }, [isConfiguring, registerBackHandler]);
 
   // If preselected word was passed
   useEffect(() => {

@@ -29,7 +29,12 @@ const PLAYER_COLORS = [
   'bg-teal-300 text-black border-2 border-black shadow-[3px_3px_0px_#000000]',
 ];
 
-export const PartyMode: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) => {
+interface PartyProps {
+  onBackToMenu?: () => void;
+  registerBackHandler?: (handler: (() => boolean) | null) => void;
+}
+
+export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHandler }) => {
   const { profile, recordPartyGame, addXP } = useGame();
   const { t } = useTranslation(profile.systemLanguage);
 
@@ -51,6 +56,24 @@ export const PartyMode: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
   const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
   const [isGameOver, setIsGameOver] = useState(false);
   const [showPartyFinishAd, setShowPartyFinishAd] = useState(false);
+
+  // Register Android back button handler
+  React.useEffect(() => {
+    if (registerBackHandler) {
+      registerBackHandler(() => {
+        if (!isLobby) {
+          sounds.playPop();
+          setIsLobby(true);
+          setIsGameOver(false);
+          return true; // handled, stopped active party match and went to lobby
+        }
+        return false; // let App.tsx return to home
+      });
+    }
+    return () => {
+      if (registerBackHandler) registerBackHandler(null);
+    };
+  }, [isLobby, registerBackHandler]);
 
   // Add new player to lobby
   const handleAddPlayer = () => {

@@ -7,8 +7,11 @@ import { Crown, Sparkles, X, Volume2, ExternalLink, Zap, ShieldCheck } from 'luc
 
 export type AdContextType =
   | 'play_finish'
+  | 'party_start'
   | 'party_finish'
   | 'dictionary_time'
+  | 'revision_deck'
+  | 'revision_5words'
   | 'revision_12words';
 
 interface Props {
