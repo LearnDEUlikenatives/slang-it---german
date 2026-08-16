@@ -58,8 +58,8 @@ export const WiederholenView: React.FC = () => {
     const nextRevised = wordsRevisedCount + 1;
     setWordsRevisedCount(nextRevised);
 
-    // Display ad when player finishes revising 5 words under Revision
-    if (!profile.isPremium && nextRevised % 5 === 0) {
+    // Display ad when player finishes revising a set of 12 words under Revision (throttled by cooldown)
+    if (!profile.isPremium && nextRevised % 12 === 0) {
       setShowRevisionAd(true);
     }
 

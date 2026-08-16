@@ -27,7 +27,7 @@ export const LernenView: React.FC<Props> = ({ onPracticeSlang }) => {
   const [showDictionaryAd, setShowDictionaryAd] = useState(false);
   const hasTriggeredAdRef = useRef(false);
 
-  // Trigger ad when user spends 20 seconds or more on the dictionary page
+  // Trigger ad when user spends extended time (60 seconds) on dictionary page (throttled by global cooldown)
   useEffect(() => {
     if (profile.isPremium || hasTriggeredAdRef.current) return;
 
@@ -36,7 +36,7 @@ export const LernenView: React.FC<Props> = ({ onPracticeSlang }) => {
         hasTriggeredAdRef.current = true;
         setShowDictionaryAd(true);
       }
-    }, 20000); // 20 seconds
+    }, 60000); // 60 seconds
 
     return () => {
       clearTimeout(timer);

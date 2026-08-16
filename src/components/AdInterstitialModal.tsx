@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useGame } from '../context/GameContext';
 import { sounds } from '../utils/audio';
 import { useTranslation } from '../utils/translations';
-import { showGoogleInterstitialAd, ADMOB_CONFIG } from '../services/admobService';
+import { showGoogleInterstitialAd, canShowAd, ADMOB_CONFIG } from '../services/admobService';
 import { Crown, Sparkles, X, Volume2, ExternalLink, Zap, ShieldCheck } from 'lucide-react';
 
 export type AdContextType =
@@ -100,6 +100,12 @@ export const AdInterstitialModal: React.FC<Props> = ({
   // Trigger native Google AdMob interstitial or start fallback timer
   useEffect(() => {
     if (isOpen && !profile.isPremium) {
+      // If cooldown is active, skip ad completely
+      if (!canShowAd()) {
+        onClose();
+        return;
+      }
+
       let isMounted = true;
 
       // Attempt native Google AdMob SDK trigger

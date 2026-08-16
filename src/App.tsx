@@ -23,14 +23,10 @@ function MainAppContent() {
   const [practiceWord, setPracticeWord] = useState<SlangWord | undefined>(undefined);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Initialize AdMob on app launch
+  // Initialize AdMob smoothly on app launch
   useEffect(() => {
-    initializeAdMob(false).then(() => {
-      if (!profile.isPremium) {
-        showGoogleAppOpenAd(false);
-      }
-    });
-  }, [profile.isPremium]);
+    initializeAdMob(false);
+  }, []);
 
   const handlePracticeSlang = (slang: SlangWord) => {
     setPracticeWord(slang);
