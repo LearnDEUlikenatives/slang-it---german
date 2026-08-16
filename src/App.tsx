@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { GameProvider } from './context/GameContext';
 import { Navbar } from './components/Navbar';
+import { LeftSidebarDrawer } from './components/LeftSidebarDrawer';
 import { MobileNav } from './components/MobileNav';
 import { HomeDashboard } from './components/HomeDashboard';
 import { GameScreen } from './components/GameScreen';
@@ -18,6 +19,7 @@ export type TabType = 'home' | 'spielen' | 'party' | 'lernen' | 'wiederholen' | 
 function MainAppContent() {
   const [activeTab, setActiveTab] = useState<TabType>('home');
   const [practiceWord, setPracticeWord] = useState<SlangWord | undefined>(undefined);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const handlePracticeSlang = (slang: SlangWord) => {
     setPracticeWord(slang);
@@ -26,11 +28,26 @@ function MainAppContent() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FF71CE] text-black selection:bg-[#FFFB96] selection:text-black pb-20 md:pb-6 relative">
-      {/* Top Cartoon Header */}
-      <Navbar activeTab={activeTab} onSelectTab={(tab) => {
-        setPracticeWord(undefined);
-        setActiveTab(tab);
-      }} />
+      {/* Top Header with App Symbol that Panes in the Left Menu */}
+      <Navbar
+        activeTab={activeTab}
+        onSelectTab={(tab) => {
+          setPracticeWord(undefined);
+          setActiveTab(tab);
+        }}
+        onOpenMenu={() => setIsSidebarOpen(true)}
+      />
+
+      {/* Left Sidebar Drawer - Panes in from the left and panes out upon selection */}
+      <LeftSidebarDrawer
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        activeTab={activeTab}
+        onSelectTab={(tab) => {
+          setPracticeWord(undefined);
+          setActiveTab(tab);
+        }}
+      />
 
       {/* Main Content Area */}
       <main className="flex-1 w-full max-w-7xl mx-auto p-2 sm:p-4">

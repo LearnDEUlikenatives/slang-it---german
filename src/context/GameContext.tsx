@@ -306,44 +306,66 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const addXP = (amount: number) => {
-    const oldLevel = profile.level;
-    const newXp = profile.xp + amount;
-    const newLevel = Math.floor(newXp / 200) + 1;
-    const leveledUp = newLevel > oldLevel;
+    let leveledUp = false;
+    let newLevelResult = 1;
 
-    if (leveledUp) {
-      sounds.playLevelUp();
-      try {
-        confetti({
-          particleCount: 100,
-          spread: 80,
-          origin: { y: 0.5 },
+    setProfile((prev) => {
+      const oldLevel = prev.level;
+      const newXp = prev.xp + amount;
+      const newLevel = Math.floor(newXp / 200) + 1;
+      leveledUp = newLevel > oldLevel;
+      newLevelResult = newLevel;
+
+      if (leveledUp) {
+        sounds.playLevelUp();
+        try {
+          confetti({
+            particleCount: 100,
+            spread: 80,
+            origin: { y: 0.5 },
+          });
+        } catch {}
+      }
+
+      const updated = {
+        ...prev,
+        xp: newXp,
+        level: newLevel,
+      };
+
+      setTimeout(() => {
+        setStats((currStats: any) => {
+          evaluateAchievements(updated, currStats);
+          return currStats;
         });
-      } catch {}
-    }
+      }, 0);
 
-    const updated = {
-      ...profile,
-      xp: newXp,
-      level: newLevel,
-    };
+      return updated;
+    });
 
-    setProfile(updated);
-    evaluateAchievements(updated, stats);
-    return { newLevel, leveledUp };
+    return { newLevel: newLevelResult, leveledUp };
   };
 
   const recordGameResult = (correctCount: number, totalCount: number, learnedIds: string[]) => {
-    const updatedLearned = Array.from(new Set([...profile.learnedWordIds, ...learnedIds]));
-    const updated = {
-      ...profile,
-      totalCorrect: profile.totalCorrect + correctCount,
-      totalPlayed: profile.totalPlayed + totalCount,
-      dailyProgress: Math.min(profile.dailyGoal, profile.dailyProgress + correctCount),
-      learnedWordIds: updatedLearned,
-    };
-    setProfile(updated);
-    evaluateAchievements(updated, stats);
+    setProfile((prev) => {
+      const updatedLearned = Array.from(new Set([...prev.learnedWordIds, ...learnedIds]));
+      const updated = {
+        ...prev,
+        totalCorrect: prev.totalCorrect + correctCount,
+        totalPlayed: prev.totalPlayed + totalCount,
+        dailyProgress: Math.min(prev.dailyGoal, prev.dailyProgress + correctCount),
+        learnedWordIds: updatedLearned,
+      };
+
+      setTimeout(() => {
+        setStats((currStats: any) => {
+          evaluateAchievements(updated, currStats);
+          return currStats;
+        });
+      }, 0);
+
+      return updated;
+    });
   };
 
   const toggleFavorite = (wordId: string) => {
