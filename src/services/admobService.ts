@@ -1,3 +1,6 @@
+import { AdMob, InterstitialAdPluginEvents } from '@capacitor-community/admob';
+import { Capacitor } from '@capacitor/core';
+
 /**
  * Google AdMob Integration Service
  * Configured with official AdMob App ID & Ad Unit IDs.
@@ -25,10 +28,7 @@ let lastAdTimestamp = 0;
  * Checks if AdMob is running in native Capacitor environment
  */
 export function isNativeAdMobAvailable(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    Boolean((window as any).Capacitor?.isPluginAvailable?.('AdMob'))
-  );
+  return typeof window !== 'undefined' && Capacitor.isNativePlatform();
 }
 
 /**
@@ -49,7 +49,6 @@ export async function preloadInterstitialAd(isTesting = false): Promise<void> {
 
   try {
     isLoadingAd = true;
-    const { AdMob } = (window as any).Capacitor.Plugins;
     await AdMob.prepareInterstitial({
       adId: ADMOB_CONFIG.INTERSTITIAL_AD_UNIT_ID,
       isTesting,
@@ -72,15 +71,13 @@ export async function initializeAdMob(isTesting = false): Promise<void> {
 
   try {
     if (isNativeAdMobAvailable()) {
-      const { AdMob } = (window as any).Capacitor.Plugins;
-      
       await AdMob.initialize({
         initializeForTesting: isTesting,
       });
 
       // Register native event listeners for lifecycle
       try {
-        AdMob.addListener('interstitialAdDismissed', () => {
+        AdMob.addListener(InterstitialAdPluginEvents.Dismissed, () => {
           isAdLoaded = false;
           isAdShowing = false;
           lastAdTimestamp = Date.now();
@@ -88,12 +85,17 @@ export async function initializeAdMob(isTesting = false): Promise<void> {
           setTimeout(() => preloadInterstitialAd(isTesting), 2000);
         });
 
-        AdMob.addListener('interstitialAdFailedToLoad', () => {
+        AdMob.addListener(InterstitialAdPluginEvents.FailedToLoad, () => {
           isAdLoaded = false;
           isLoadingAd = false;
         });
+
+        AdMob.addListener(InterstitialAdPluginEvents.Loaded, () => {
+          isAdLoaded = true;
+          isLoadingAd = false;
+        });
       } catch (listenerErr) {
-        // Safe fallback if listeners not supported in current version
+        console.warn('AdMob listener setup warning:', listenerErr);
       }
 
       isInitialized = true;
@@ -122,7 +124,6 @@ export async function showGoogleInterstitialAd(isTesting = false): Promise<boole
 
   // 1. Native Capacitor AdMob
   if (isNativeAdMobAvailable()) {
-    const { AdMob } = (window as any).Capacitor.Plugins;
     isAdShowing = true;
 
     try {
