@@ -57,7 +57,7 @@ export const UI_TRANSLATIONS: Record<Language, Record<string, string>> = {
     start_session: 'Start Training',
 
     // Game Config & Play
-    game_config_title: 'Configure Play Session',
+    game_config_title: 'Configure Session',
     game_config_subtitle: 'Choose your session time, difficulty, and regional focus!',
     time_label: 'Time Duration',
     time_1min: '1 min (60s)',
@@ -393,7 +393,7 @@ export const UI_TRANSLATIONS: Record<Language, Record<string, string>> = {
     quick_start: 'Juego Rápido',
     start_session: 'Iniciar Entrenamiento',
 
-    game_config_title: 'Configurar Sesión de Juego',
+    game_config_title: 'Configurar Sesión',
     game_config_subtitle: '¡Elige el tiempo de sesión, dificultad y dialecto regional!',
     time_label: 'Tiempo',
     time_1min: '1 min (60s)',
@@ -547,7 +547,7 @@ export const UI_TRANSLATIONS: Record<Language, Record<string, string>> = {
     quick_start: 'Partie Rapide',
     start_session: 'Lancer l’Entraînement',
 
-    game_config_title: 'Configurer la Session de Jeu',
+    game_config_title: 'Configurer la Session',
     game_config_subtitle: 'Choisissez la durée, la difficulté et les dialectes régionaux !',
     time_label: 'Durée',
     time_1min: '1 min (60s)',

@@ -3,19 +3,20 @@ import { Capacitor } from '@capacitor/core';
 
 /**
  * Google AdMob Integration Service
- * Configured with official AdMob App ID & Ad Unit IDs.
+ * Configured strictly for Interstitial Ads across the 3 core views (Play, Party, Revision).
+ * App Open Ads are completely removed to prevent startup latency and visual glitches.
+ * 
  * Features:
- * - Proactive Background Pre-caching (Zero-delay instant ad display, eliminates white screens & loading lag)
+ * - Proactive Background Pre-caching (Instant ad display upon round/game completion)
  * - Automatic re-buffering after dismissal
- * - Frequency cooldown protection (avoids spamming players)
+ * - Intelligent frequency cooldown protection
  */
 
 export const ADMOB_CONFIG = {
   APP_ID: 'ca-app-pub-4045089359333252~3927685995',
   INTERSTITIAL_AD_UNIT_ID: 'ca-app-pub-4045089359333252/9100121622',
-  APP_OPEN_AD_UNIT_ID: 'ca-app-pub-4045089359333252/8011089596',
-  // Minimum time between interstitial ads (60 seconds cooldown)
-  MIN_AD_INTERVAL_MS: 60000,
+  // Minimum time between interstitial ads (45 seconds cooldown to avoid rapid spam)
+  MIN_AD_INTERVAL_MS: 45000,
 };
 
 let isInitialized = false;
@@ -55,16 +56,16 @@ export async function preloadInterstitialAd(isTesting = false): Promise<void> {
     });
     isAdLoaded = true;
     isLoadingAd = false;
-    console.log('✅ Google AdMob Interstitial pre-cached in memory (Instant Ready).');
+    console.log('✅ Google AdMob Interstitial pre-cached in memory.');
   } catch (error) {
-    console.warn('AdMob background preload error:', error);
+    console.warn('AdMob background preload notice:', error);
     isAdLoaded = false;
     isLoadingAd = false;
   }
 }
 
 /**
- * Initializes AdMob SDK and begins pre-caching the first ad immediately.
+ * Initializes AdMob SDK and begins pre-caching the first interstitial ad immediately.
  */
 export async function initializeAdMob(isTesting = false): Promise<void> {
   if (isInitialized) return;
@@ -101,14 +102,14 @@ export async function initializeAdMob(isTesting = false): Promise<void> {
       isInitialized = true;
       console.log('✅ Google AdMob Native SDK initialized.');
 
-      // Pre-load the first ad silently right now so it is ready when needed
+      // Pre-load the first interstitial ad silently so it is ready when a user finishes a round
       preloadInterstitialAd(isTesting);
       return;
     }
 
     isInitialized = true;
   } catch (error) {
-    console.warn('Google AdMob initialization error:', error);
+    console.warn('Google AdMob initialization notice:', error);
   }
 }
 
@@ -118,7 +119,7 @@ export async function initializeAdMob(isTesting = false): Promise<void> {
  */
 export async function showGoogleInterstitialAd(isTesting = false): Promise<boolean> {
   if (!canShowAd()) {
-    console.info('AdMob: Skipped due to cooldown frequency cap.');
+    console.info('AdMob: Skipped due to cooldown interval.');
     return false;
   }
 
@@ -143,7 +144,7 @@ export async function showGoogleInterstitialAd(isTesting = false): Promise<boole
       setTimeout(() => preloadInterstitialAd(isTesting), 2000);
       return true;
     } catch (err) {
-      console.warn('Native AdMob display error:', err);
+      console.warn('Native AdMob display notice:', err);
       isAdShowing = false;
       isAdLoaded = false;
       // Re-trigger preload for future attempts
@@ -156,5 +157,6 @@ export async function showGoogleInterstitialAd(isTesting = false): Promise<boole
   lastAdTimestamp = Date.now();
   return false;
 }
+
 
 

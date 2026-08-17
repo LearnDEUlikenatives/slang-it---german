@@ -388,17 +388,14 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
       <div id="game-config-screen" className="max-w-3xl mx-auto py-4 px-3 sm:px-6">
         <div className="cartoon-card-lg bg-white rounded-3xl p-6 sm:p-8 relative overflow-hidden border-4 border-black shadow-[8px_8px_0px_#000000]">
           {/* Header Banner */}
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-2xl bg-[#05FFA1] border-3 border-black flex items-center justify-center text-2xl shadow-[3px_3px_0px_#000000]">
+          <div className="flex items-center gap-3 mb-5 pb-3 border-b-2 border-black/10">
+            <div className="w-10 h-10 rounded-2xl bg-[#05FFA1] border-3 border-black flex items-center justify-center text-xl shadow-[2px_2px_0px_#000000] shrink-0">
               🎮
             </div>
-            <div>
-              <h2 className="text-2xl sm:text-3xl font-black text-black font-cartoon italic">
+            <div className="min-w-0">
+              <h2 className="text-xl sm:text-2xl font-black text-black font-cartoon italic tracking-tight whitespace-nowrap">
                 {t('game_config_title')}
               </h2>
-              <p className="text-sm font-bold text-black/80">
-                {t('game_config_subtitle')}
-              </p>
             </div>
           </div>
 
@@ -492,12 +489,12 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
               </div>
             </div>
 
-            {/* Categories */}
+            {/* Categories (2x4 Arrangement) */}
             <div>
               <label className="block text-sm font-black text-black mb-2 font-cartoon">
                 {t('category_label')}:
               </label>
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {(Object.keys(CATEGORY_LABELS) as SlangCategory[]).map((cat) => {
                   const meta = CATEGORY_LABELS[cat];
                   const isSelected = config.categories.includes(cat);
@@ -514,14 +511,14 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
                           return { ...prev, categories: updated.length ? updated : [cat] };
                         });
                       }}
-                      className={`cartoon-btn-sm px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 border-2 border-black transition-all ${
+                      className={`cartoon-btn-sm p-2 rounded-xl text-xs font-black flex items-center gap-2 border-2 border-black transition-all ${
                         isSelected
                           ? 'bg-[#FF71CE] text-black shadow-[2.5px_2.5px_0px_#000000]'
                           : 'bg-white text-black/70 hover:bg-neutral-100 shadow-[1.5px_1.5px_0px_#000000]'
                       }`}
                     >
-                      <span>{meta.icon}</span>
-                      <span>{meta.label}</span>
+                      <span className="text-base shrink-0">{meta.icon}</span>
+                      <span className="truncate">{meta.label}</span>
                     </button>
                   );
                 })}
@@ -620,34 +617,34 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
   const secondsLeft = totalTimeLeft % 60;
 
   return (
-    <div id="active-game-screen" className="max-w-3xl mx-auto py-3 px-3 sm:px-6 space-y-4">
-      {/* Top Status Bar: Timer, Score, Combo & Strikes */}
-      <div className="cartoon-card bg-white rounded-2xl p-3 sm:p-4 flex items-center justify-between gap-2 border-3 border-black shadow-[4px_4px_0px_#000000]">
+    <div id="active-game-screen" className="max-w-2xl mx-auto py-2 sm:py-3 px-3 sm:px-5">
+      {/* Top Status Bar: Timer, Combo, Hint (Inline), Strikes & Score */}
+      <div className="cartoon-card bg-white rounded-2xl p-2.5 sm:p-3 mb-3 flex items-center justify-between gap-2 border-3 border-black shadow-[4px_4px_0px_#000000]">
         {/* Total Session Time Left */}
-        <div className="flex items-center gap-2 bg-[#FFFB96] px-3 py-1.5 rounded-xl border-2 border-black shadow-[2px_2px_0px_#000000]">
-          <Clock className={`w-4 h-4 ${totalTimeLeft <= 15 ? 'text-rose-600 animate-spin' : 'text-black'}`} />
-          <span className="font-cartoon text-sm font-black text-black">
+        <div className="flex items-center gap-1.5 bg-[#FFFB96] px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl border-2 border-black shadow-[2px_2px_0px_#000000]">
+          <Clock className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${totalTimeLeft <= 15 ? 'text-rose-600 animate-spin' : 'text-black'}`} />
+          <span className="font-cartoon text-xs sm:text-sm font-black text-black">
             {minutesLeft}:{secondsLeft < 10 ? `0${secondsLeft}` : secondsLeft}
           </span>
         </div>
 
-        {/* Combo Multiplier */}
+        {/* Combo Multiplier (if active) */}
         {combo > 1 && (
-          <div className="flex items-center gap-1 bg-[#FF71CE] px-3 py-1.5 rounded-xl border-2 border-black animate-bounce shadow-[2px_2px_0px_#000000]">
-            <Flame className="w-4 h-4 text-black fill-black" />
-            <span className="font-cartoon text-xs font-black text-black">
-              {combo}x Combo!
+          <div className="flex items-center gap-1 bg-[#FF71CE] px-2 py-1 rounded-xl border-2 border-black animate-bounce shadow-[1.5px_1.5px_0px_#000000]">
+            <Flame className="w-3.5 h-3.5 text-black fill-black" />
+            <span className="font-cartoon text-[11px] font-black text-black">
+              {combo}x
             </span>
           </div>
         )}
 
         {/* Strikes (Hard Mode) */}
         {config.difficulty === 'hard' && (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             {[1, 2, 3].map((s) => (
               <span
                 key={s}
-                className={`text-base ${s <= strikes ? 'opacity-100 grayscale-0 scale-110' : 'opacity-25 grayscale'}`}
+                className={`text-sm ${s <= strikes ? 'opacity-100 grayscale-0 scale-110' : 'opacity-25 grayscale'}`}
               >
                 ❌
               </span>
@@ -655,88 +652,80 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
           </div>
         )}
 
+        {/* Hint Button (Moved to top status bar) */}
+        {currentQ.hints && currentQ.hints.length > 0 && (
+          <button
+            disabled={isAnswerRevealed || revealedHints >= currentQ.hints.length}
+            onClick={handleShowHint}
+            className="cartoon-btn-sm px-2.5 py-1 rounded-xl bg-white hover:bg-neutral-100 text-black font-cartoon text-xs font-black flex items-center gap-1 border-2 border-black shadow-[1.5px_1.5px_0px_#000000] disabled:opacity-40"
+            title="Get a hint"
+          >
+            <HelpCircle className="w-3.5 h-3.5 text-black" />
+            <span>{t('hint_btn')} {revealedHints < currentQ.hints.length ? `(${currentQ.hints.length - revealedHints})` : ''}</span>
+          </button>
+        )}
+
         {/* Score Tally */}
-        <div className="flex items-center gap-1.5 bg-[#05FFA1] px-3 py-1.5 rounded-xl border-2 border-black shadow-[2px_2px_0px_#000000]">
-          <Award className="w-4 h-4 text-black" />
-          <span className="font-cartoon text-sm font-black text-black">
+        <div className="flex items-center gap-1.5 bg-[#05FFA1] px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl border-2 border-black shadow-[2px_2px_0px_#000000]">
+          <Award className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-black" />
+          <span className="font-cartoon text-xs sm:text-sm font-black text-black">
             {score} {t('score')}
           </span>
         </div>
       </div>
 
-      {/* Comic Scenario Question Card */}
-      <div className="cartoon-card-lg bg-white rounded-3xl p-5 sm:p-7 border-4 border-black shadow-[6px_6px_0px_#000000]">
-        {/* Category & Audio bar */}
-        <div className="flex items-center justify-between gap-2 mb-4">
-          <div className="flex items-center gap-2">
-            <span className="bg-[#FFFB96] px-3 py-1 rounded-xl text-xs font-black border-2 border-black shadow-[1.5px_1.5px_0px_#000000] font-cartoon">
-              {currentQ.scenario.title}
-            </span>
-            <span className="text-xs font-bold text-black/60">
-              Q #{currentIndex + 1}
-            </span>
-          </div>
-
-          <button
-            onClick={handleSpeakDialogue}
-            className="cartoon-btn-sm px-3 py-1.5 rounded-xl bg-[#01CDFE] hover:bg-[#01CDFE]/80 text-black font-black text-xs flex items-center gap-1.5 border-2 border-black shadow-[2px_2px_0px_#000000]"
-            title={t('audio_listen')}
-          >
-            <Volume2 className="w-4 h-4 text-black" />
-            <span className="hidden sm:inline">{t('audio_listen')}</span>
-          </button>
+      {/* Revealed Hint Message (if clicked) */}
+      {revealedHints > 0 && currentQ.hints && (
+        <div className="mb-2 p-2 bg-[#FFFB96] rounded-xl border-2 border-black text-xs font-bold text-black shadow-[2px_2px_0px_#000000] animate-pop">
+          💡 Hint: {currentQ.hints[revealedHints - 1]}
         </div>
+      )}
 
-        {/* Quiet & Easy to Understand Comic Dialogue Bubble */}
-        <div className="bg-[#FFFB96]/30 border-3 border-black rounded-3xl p-4 sm:p-6 mb-6 shadow-[3px_3px_0px_#000000] space-y-4">
+      {/* Comic Scenario Question Card */}
+      <div className="cartoon-card-lg bg-white rounded-3xl p-4 sm:p-5 border-3 border-black shadow-[5px_5px_0px_#000000]">
+        {/* Comic Dialogue Bubble */}
+        <div className="bg-[#FFFB96]/20 border-2 border-black rounded-2xl p-3 sm:p-4 mb-3 space-y-2.5 shadow-[2px_2px_0px_#000000]">
           {/* Speaker 1 (Context Prompt) */}
-          <div className="flex items-start gap-3">
-            <CartoonAvatar avatarId={currentQ.scenario.avatar1} size="md" />
-            <div className="bg-white border-2 border-black rounded-2xl rounded-tl-sm p-3 shadow-[2px_2px_0px_#000000] max-w-[85%]">
-              <span className="text-[11px] font-black text-black font-cartoon block mb-0.5">
+          <div className="flex items-start gap-2.5">
+            <CartoonAvatar avatarId={currentQ.scenario.avatar1} size="md" className="shrink-0" />
+            <div className="bg-white border-2 border-black rounded-2xl rounded-tl-sm p-2.5 shadow-[1.5px_1.5px_0px_#000000] max-w-[85%]">
+              <span className="text-[10px] font-black text-black font-cartoon block mb-0.5">
                 {currentQ.scenario.speaker1}:
               </span>
-              <p className="text-sm sm:text-base font-bold text-black leading-relaxed">
+              <p className="text-xs sm:text-sm font-bold text-black leading-snug">
                 "{currentQ.scenario.text1}"
               </p>
             </div>
           </div>
 
           {/* Speaker 2 (Missing Slang Blank) */}
-          <div className="flex items-start gap-3 justify-end">
-            <div className="bg-[#05FFA1]/30 border-2 border-black rounded-2xl rounded-tr-sm p-3 shadow-[2px_2px_0px_#000000] max-w-[85%] text-right">
-              <span className="text-[11px] font-black text-black font-cartoon block mb-0.5">
+          <div className="flex items-start gap-2.5 justify-end">
+            <div className="bg-[#05FFA1]/30 border-2 border-black rounded-2xl rounded-tr-sm p-2.5 shadow-[1.5px_1.5px_0px_#000000] max-w-[85%] text-right">
+              <span className="text-[10px] font-black text-black font-cartoon block mb-0.5">
                 {currentQ.scenario.speaker2}:
               </span>
-              <p className="text-sm sm:text-base font-black text-black leading-relaxed">
+              <p className="text-xs sm:text-sm font-black text-black leading-snug">
                 "{currentQ.scenario.text2.replace('_____', isAnswerRevealed ? `✨ ${currentQ.term} ✨` : '❓ [ ... ]')}"
               </p>
             </div>
-            <CartoonAvatar avatarId={currentQ.scenario.avatar2} size="md" />
+            <CartoonAvatar avatarId={currentQ.scenario.avatar2} size="md" className="shrink-0" />
           </div>
         </div>
 
-        {/* Question Prompt */}
-        <div className="text-center mb-4">
-          <p className="text-xs sm:text-sm font-black text-black uppercase font-cartoon tracking-wider">
-            {t('select_correct_meaning')}
-          </p>
-        </div>
-
-        {/* Dynamic Multiple Choice Options (2 for Easy, 3 for Medium, 4 for Hard) */}
-        <div className={`grid gap-3 ${shuffledOptions.length === 2 ? 'grid-cols-1 sm:grid-cols-2' : shuffledOptions.length === 3 ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2'}`}>
+        {/* Dynamic Multiple Choice Options in 2x2 Grid */}
+        <div className={`grid gap-2 sm:gap-2.5 ${shuffledOptions.length === 2 ? 'grid-cols-2' : shuffledOptions.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
           {shuffledOptions.map((option) => {
             const isSelected = selectedOption === option;
             const isCorrect = option.toLowerCase() === currentQ.term.toLowerCase();
             
-            let btnBg = 'bg-white hover:bg-[#FFFB96]/40 text-black';
+            let btnBg = 'bg-white hover:bg-[#FFFB96] text-black shadow-[2.5px_2.5px_0px_#000000]';
             if (isAnswerRevealed) {
               if (isCorrect) {
-                btnBg = 'bg-[#05FFA1] text-black ring-3 ring-black shadow-[4px_4px_0px_#000000] scale-102';
+                btnBg = 'bg-[#05FFA1] text-black ring-3 ring-black shadow-[3px_3px_0px_#000000] scale-[1.02]';
               } else if (isSelected && !isCorrect) {
-                btnBg = 'bg-rose-400 text-black line-through opacity-80';
+                btnBg = 'bg-[#FF71CE] text-black line-through shadow-[1.5px_1.5px_0px_#000000]';
               } else {
-                btnBg = 'bg-neutral-100 text-black/50 opacity-50';
+                btnBg = 'bg-neutral-100 text-black/40 border-black/40';
               }
             }
 
@@ -745,11 +734,11 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
                 key={option}
                 disabled={isAnswerRevealed}
                 onClick={() => handleAnswer(option, true)}
-                className={`cartoon-btn p-4 rounded-2xl font-black text-base sm:text-lg font-cartoon transition-all border-3 border-black shadow-[3px_3px_0px_#000000] flex items-center justify-center gap-2 ${btnBg}`}
+                className={`cartoon-btn py-3 sm:py-3.5 px-3 rounded-2xl font-black text-sm sm:text-base font-cartoon transition-all border-3 border-black flex items-center justify-center text-center italic ${btnBg}`}
               >
-                <span>{option}</span>
-                {isAnswerRevealed && isCorrect && <CheckCircle2 className="w-5 h-5 text-black" />}
-                {isAnswerRevealed && isSelected && !isCorrect && <XCircle className="w-5 h-5 text-black" />}
+                <span className="truncate">{option}</span>
+                {isAnswerRevealed && isCorrect && <CheckCircle2 className="w-4 h-4 text-black shrink-0 ml-1.5" />}
+                {isAnswerRevealed && isSelected && !isCorrect && <XCircle className="w-4 h-4 text-black shrink-0 ml-1.5" />}
               </button>
             );
           })}
@@ -764,43 +753,6 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
           earnedXP={config.difficulty === 'hard' ? 150 : config.difficulty === 'medium' ? 100 : 75}
           onNext={handleNextQuestion}
         />
-
-        {/* Bottom Actions: Voice Input + Hints */}
-        <div className="mt-6 pt-4 border-t-2 border-black/10 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            {/* Hint Button */}
-            {currentQ.hints && currentQ.hints.length > 0 && (
-              <button
-                disabled={isAnswerRevealed || revealedHints >= currentQ.hints.length}
-                onClick={handleShowHint}
-                className="cartoon-btn-sm px-3 py-2 rounded-xl bg-white hover:bg-neutral-100 text-black font-cartoon text-xs font-black flex items-center gap-1.5 border-2 border-black shadow-[2px_2px_0px_#000000] disabled:opacity-50"
-              >
-                <HelpCircle className="w-4 h-4 text-black" />
-                <span>{t('hint_btn')} ({currentQ.hints.length - revealedHints})</span>
-              </button>
-            )}
-
-            {/* Voice Guess Button */}
-            {profile.voiceInputEnabled && !isAnswerRevealed && (
-              <button
-                onClick={toggleVoiceInput}
-                className={`cartoon-btn-sm px-3 py-2 rounded-xl font-cartoon text-xs font-black flex items-center gap-1.5 border-2 border-black shadow-[2px_2px_0px_#000000] ${
-                  isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-[#FF71CE] hover:bg-[#FF71CE]/80 text-black'
-                }`}
-              >
-                {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-                <span className="hidden sm:inline">{isListening ? 'Stop Mic' : 'Voice Guess'}</span>
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Revealed Hint Message */}
-        {revealedHints > 0 && currentQ.hints && (
-          <div className="mt-3 p-3 bg-white rounded-xl border-2 border-black text-xs font-bold text-black shadow-[2px_2px_0px_#000000]">
-            💡 Hint: {currentQ.hints[revealedHints - 1]}
-          </div>
-        )}
       </div>
     </div>
   );
