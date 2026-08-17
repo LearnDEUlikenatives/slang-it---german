@@ -3,6 +3,7 @@ import { SLANG_DATABASE } from '../data/slangDatabase';
 import { SlangWord } from '../types';
 import { speakGerman, sounds } from '../utils/audio';
 import { AdInterstitialModal } from './AdInterstitialModal';
+import { showGoogleRewardVideoAd } from '../services/admobService';
 import { useGame } from '../context/GameContext';
 import { useTranslation, LANGUAGES } from '../utils/translations';
 import { getSlangMeaning } from '../utils/slangTranslations';
@@ -11,7 +12,8 @@ import {
   Volume2,
   CheckCircle2,
   XCircle,
-  Eye
+  Eye,
+  Sparkles
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -35,6 +37,7 @@ export const WiederholenView: React.FC = () => {
   const [knownCount, setKnownCount] = useState(0);
   const [repeatCount, setRepeatCount] = useState(0);
   const [showRevisionAd, setShowRevisionAd] = useState(false);
+  const [hasClaimedBonusXP, setHasClaimedBonusXP] = useState(false);
   const [isDeckFinished, setIsDeckFinished] = useState(false);
 
   const currentCard = deck[currentIndex];
@@ -47,6 +50,7 @@ export const WiederholenView: React.FC = () => {
     setIsFlipped(false);
     setKnownCount(0);
     setRepeatCount(0);
+    setHasClaimedBonusXP(false);
     setIsDeckFinished(false);
   };
 
@@ -108,6 +112,7 @@ export const WiederholenView: React.FC = () => {
     setIsFlipped(false);
     setKnownCount(0);
     setRepeatCount(0);
+    setHasClaimedBonusXP(false);
     setIsDeckFinished(false);
   };
 
@@ -140,6 +145,35 @@ export const WiederholenView: React.FC = () => {
               <span className="text-2xl font-black text-black font-cartoon">{repeatCount}</span>
             </div>
           </div>
+
+          {/* High-eCPM Rewarded Ad Action (Bonus Revision XP) */}
+          {!hasClaimedBonusXP && (
+            <div className="mb-4">
+              <button
+                onClick={() => {
+                  sounds.playPop();
+                  showGoogleRewardVideoAd(() => {
+                    addXP(100);
+                    setHasClaimedBonusXP(true);
+                    sounds.playLevelUp();
+                    try {
+                      confetti({ particleCount: 100, spread: 70 });
+                    } catch {}
+                  });
+                }}
+                className="cartoon-btn w-full py-3 rounded-2xl bg-gradient-to-r from-[#FF71CE] via-[#FFFB96] to-[#05FFA1] text-black font-black text-xs sm:text-sm font-cartoon flex items-center justify-center gap-2 border-3 border-black shadow-[4px_4px_0px_#000000] hover:scale-[1.02] active:scale-[0.98] transition-transform animate-pulse"
+              >
+                <Sparkles className="w-4 h-4 fill-black" />
+                <span>Claim +100 Bonus XP • Watch Short Video</span>
+              </button>
+            </div>
+          )}
+
+          {hasClaimedBonusXP && (
+            <div className="mb-4 py-2 px-3 bg-[#05FFA1] border-2 border-black rounded-2xl font-cartoon text-xs font-black text-black shadow-[2px_2px_0px_#000000]">
+              ✨ +100 Bonus XP Claimed!
+            </div>
+          )}
 
           <button
             onClick={restartDeck}

@@ -4,6 +4,7 @@ import { SLANG_DATABASE, CATEGORY_LABELS, REGION_LABELS, RARITY_LABELS } from '.
 import { CartoonAvatar } from './CartoonAvatar';
 import { AnswerFeedbackModal } from './AnswerFeedbackModal';
 import { AdInterstitialModal } from './AdInterstitialModal';
+import { showGoogleRewardVideoAd } from '../services/admobService';
 import { sounds, speakGerman, createSpeechRecognizer } from '../utils/audio';
 import { useGame } from '../context/GameContext';
 import { useTranslation, LANGUAGES } from '../utils/translations';
@@ -62,6 +63,7 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
   const [totalTimeLeft, setTotalTimeLeft] = useState(config.sessionTime);
   const [isGameOver, setIsGameOver] = useState(false);
   const [showEndGameAd, setShowEndGameAd] = useState(false);
+  const [hasClaimedDoubleXP, setHasClaimedDoubleXP] = useState(false);
   const [gameHistory, setGameHistory] = useState<Array<{ slang: SlangWord; chosen: string; isCorrect: boolean }>>([]);
   const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
   
@@ -573,6 +575,36 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
               <span className="text-[11px] font-bold text-black/80">Accuracy</span>
             </div>
           </div>
+
+          {/* High-eCPM Rewarded Ad Action (Double XP Boost) */}
+          {!hasClaimedDoubleXP && (
+            <div className="mb-4">
+              <button
+                onClick={() => {
+                  sounds.playPop();
+                  const xpEarned = score + correctCount * 25;
+                  showGoogleRewardVideoAd(() => {
+                    addXP(xpEarned);
+                    setHasClaimedDoubleXP(true);
+                    sounds.playLevelUp();
+                    try {
+                      confetti({ particleCount: 120, spread: 80 });
+                    } catch {}
+                  });
+                }}
+                className="cartoon-btn w-full py-3 rounded-2xl bg-gradient-to-r from-[#FF71CE] via-[#FFFB96] to-[#05FFA1] text-black font-black text-xs sm:text-sm font-cartoon flex items-center justify-center gap-2 border-3 border-black shadow-[4px_4px_0px_#000000] hover:scale-[1.02] active:scale-[0.98] transition-transform animate-pulse"
+              >
+                <Sparkles className="w-4 h-4 fill-black" />
+                <span>Double Your XP (+{score + correctCount * 25} Bonus XP) • Watch Short Video</span>
+              </button>
+            </div>
+          )}
+
+          {hasClaimedDoubleXP && (
+            <div className="mb-4 py-2 px-3 bg-[#05FFA1] border-2 border-black rounded-2xl font-cartoon text-xs font-black text-black shadow-[2px_2px_0px_#000000]">
+              ✨ 2x XP Claimed Successfully!
+            </div>
+          )}
 
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-3">
