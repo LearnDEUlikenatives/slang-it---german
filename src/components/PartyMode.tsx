@@ -15,8 +15,14 @@ import {
   Crown,
   Volume2,
   Sparkles,
+  Lock,
+  Clock,
+  Zap,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+
+const PARTY_COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 Hours Cooldown for Free Users
+const PARTY_LAST_MATCH_KEY = 'slangit_party_last_match_time';
 
 const PLAYER_COLORS = [
   'bg-[#FF71CE] text-black border-2 border-black shadow-[3px_3px_0px_#000000]',
@@ -35,8 +41,56 @@ interface PartyProps {
 }
 
 export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHandler }) => {
-  const { profile, recordPartyGame, addXP } = useGame();
+  const { profile, recordPartyGame, addXP, setShowPaymentModal } = useGame();
   const { t } = useTranslation(profile.systemLanguage);
+
+  // 4-Hour Free Party Match Cooldown State
+  const [cooldownRemainingSeconds, setCooldownRemainingSeconds] = useState<number>(() => {
+    if (profile.isPremium) return 0;
+    try {
+      const last = localStorage.getItem(PARTY_LAST_MATCH_KEY);
+      if (!last) return 0;
+      const elapsed = Date.now() - parseInt(last, 10);
+      const left = Math.ceil((PARTY_COOLDOWN_MS - elapsed) / 1000);
+      return left > 0 ? left : 0;
+    } catch {
+      return 0;
+    }
+  });
+
+  // Keep countdown active every second
+  useEffect(() => {
+    if (profile.isPremium) {
+      setCooldownRemainingSeconds(0);
+      return;
+    }
+
+    const checkCooldown = () => {
+      try {
+        const last = localStorage.getItem(PARTY_LAST_MATCH_KEY);
+        if (!last) {
+          setCooldownRemainingSeconds(0);
+          return;
+        }
+        const elapsed = Date.now() - parseInt(last, 10);
+        const left = Math.ceil((PARTY_COOLDOWN_MS - elapsed) / 1000);
+        setCooldownRemainingSeconds(left > 0 ? left : 0);
+      } catch {
+        setCooldownRemainingSeconds(0);
+      }
+    };
+
+    checkCooldown();
+    const interval = setInterval(checkCooldown, 1000);
+    return () => clearInterval(interval);
+  }, [profile.isPremium]);
+
+  const formatCooldownTime = (totalSecs: number) => {
+    const h = Math.floor(totalSecs / 3600);
+    const m = Math.floor((totalSecs % 3600) / 60);
+    const s = totalSecs % 60;
+    return `${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
+  };
 
   // Party Setup State
   const [isLobby, setIsLobby] = useState(true);
@@ -133,6 +187,11 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
 
   // User clicks Start button in lobby
   const handleStartPartyClick = () => {
+    if (!profile.isPremium && cooldownRemainingSeconds > 0) {
+      sounds.playWrong();
+      setShowPaymentModal(true);
+      return;
+    }
     sounds.playPop();
     startPartyGame();
   };
@@ -245,9 +304,20 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
     recordPartyGame(true);
     addXP(150);
 
-    // Trigger Native AdMob asynchronously (Zero delay / non-blocking)
+    // Free user logic: track cooldown, trigger ad, and then present Pro subscription modal
     if (!profile.isPremium) {
+      try {
+        localStorage.setItem(PARTY_LAST_MATCH_KEY, String(Date.now()));
+        setCooldownRemainingSeconds(PARTY_COOLDOWN_MS / 1000);
+      } catch {}
+
+      // Trigger Native AdMob asynchronously
       showGoogleInterstitialAd();
+
+      // Right after match completion (1.2s delay for seamless transition), show Pro subscription offer
+      setTimeout(() => {
+        setShowPaymentModal(true);
+      }, 1200);
     }
 
     try {
@@ -263,13 +333,15 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
   const activeTurnPlayer = players[activePlayerTurnIndex];
 
-  // 1. LOBBY SETUP VIEW (Optimized Single-Screen Layout, No Celebration Icon, No Scrolling)
+  // 1. LOBBY SETUP VIEW
   if (isLobby) {
+    const isFreeCooldown = !profile.isPremium && cooldownRemainingSeconds > 0;
+
     return (
       <div id="party-lobby-screen" className="max-w-2xl mx-auto py-2 sm:py-4 px-3 sm:px-5">
         <div className="cartoon-card-lg bg-white rounded-3xl p-4 sm:p-6 relative border-3 border-black shadow-[6px_6px_0px_#000000]">
           {/* Header without celebration icon */}
-          <div className="flex items-center justify-between gap-3 mb-4 pb-3 border-b-2 border-black/10">
+          <div className="flex items-center justify-between gap-3 mb-3 pb-3 border-b-2 border-black/10">
             <div>
               <h2 className="text-2xl sm:text-3xl font-black text-black font-cartoon italic tracking-tight">
                 {t('party_title')}
@@ -288,6 +360,60 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
               <span>{t('add_player')} ({players.length}/8)</span>
             </button>
           </div>
+
+          {/* 4-Hour Cooldown or Pro Pass Banner */}
+          {profile.isPremium ? (
+            <div className="mb-4 bg-[#05FFA1]/20 border-2 border-black rounded-2xl p-2.5 flex items-center justify-between gap-2 shadow-[2px_2px_0px_#000000]">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">👑</span>
+                <div>
+                  <span className="text-xs font-black text-black font-cartoon block">Pro VIP Pass Active</span>
+                  <span className="text-[10px] text-black/70 font-bold block">Unlimited Party Mode matches with friends • Zero ads</span>
+                </div>
+              </div>
+            </div>
+          ) : isFreeCooldown ? (
+            <div className="mb-4 bg-[#FF71CE]/15 border-2 border-black rounded-2xl p-3 text-left flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-[2px_2px_0px_#000000]">
+              <div>
+                <div className="flex items-center gap-1.5 text-xs font-black text-black font-cartoon">
+                  <Clock className="w-4 h-4 text-black" />
+                  <span>Free Party Match Cooldown</span>
+                </div>
+                <p className="text-[11px] font-bold text-black/80 mt-0.5">
+                  Next free match in: <strong className="text-black font-mono font-black text-xs">{formatCooldownTime(cooldownRemainingSeconds)}</strong> (1 match per 4h)
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  sounds.playPop();
+                  setShowPaymentModal(true);
+                }}
+                className="cartoon-btn-sm px-3 py-1.5 rounded-xl bg-[#05FFA1] hover:bg-[#05FFA1]/80 font-black text-xs text-black font-cartoon flex items-center justify-center gap-1.5 border-2 border-black shadow-[2px_2px_0px_#000000] shrink-0"
+              >
+                <Zap className="w-3.5 h-3.5 fill-black" />
+                <span>Play Now (Unlock Pro $10)</span>
+              </button>
+            </div>
+          ) : (
+            <div className="mb-4 bg-[#05FFA1]/20 border-2 border-black rounded-2xl p-2.5 text-left flex items-center justify-between gap-2 shadow-[2px_2px_0px_#000000]">
+              <div className="flex items-center gap-2">
+                <span className="text-base">🎉</span>
+                <div>
+                  <span className="text-xs font-black text-black font-cartoon block">Free Party Match Ready!</span>
+                  <span className="text-[10px] text-black/70 font-bold block">1 free multiplayer match available every 4 hours</span>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  sounds.playPop();
+                  setShowPaymentModal(true);
+                }}
+                className="text-[10px] font-black text-black underline font-cartoon hover:text-black/80 shrink-0"
+              >
+                Get Unlimited (Pro $10)
+              </button>
+            </div>
+          )}
 
           {/* Player Cards Compact Grid */}
           <div className="mb-4">
@@ -366,10 +492,23 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
           <button
             id="start-party-match-btn"
             onClick={handleStartPartyClick}
-            className="cartoon-btn w-full py-3.5 rounded-2xl bg-[#05FFA1] hover:bg-[#05FFA1]/80 font-black text-base text-black font-cartoon flex items-center justify-center gap-2 border-3 border-black shadow-[4px_4px_0px_#000000]"
+            className={`cartoon-btn w-full py-3.5 rounded-2xl font-black text-base text-black font-cartoon flex items-center justify-center gap-2 border-3 border-black shadow-[4px_4px_0px_#000000] ${
+              isFreeCooldown
+                ? 'bg-[#FFFB96] hover:bg-[#FFFB96]/80'
+                : 'bg-[#05FFA1] hover:bg-[#05FFA1]/80'
+            }`}
           >
-            <span>{t('start_party_btn')}</span>
-            <Play className="w-5 h-5 fill-black" />
+            {isFreeCooldown ? (
+              <>
+                <Lock className="w-5 h-5 text-black" />
+                <span>Unlock Pro for $10 (or wait {formatCooldownTime(cooldownRemainingSeconds)})</span>
+              </>
+            ) : (
+              <>
+                <span>{t('start_party_btn')}</span>
+                <Play className="w-5 h-5 fill-black" />
+              </>
+            )}
           </button>
         </div>
       </div>

@@ -16,10 +16,22 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
+const REVISION_WORDS_COUNT_KEY = 'slangit_revised_words_count';
+
 export const WiederholenView: React.FC = () => {
   const { profile, addXP, recordGameResult } = useGame();
   const { t } = useTranslation(profile.systemLanguage);
   const currentLangObj = LANGUAGES.find((l) => l.code === profile.systemLanguage) || LANGUAGES[0];
+
+  // Track cumulative words revised (milestone of 10 words per ad)
+  const [cumulativeRevisedCount, setCumulativeRevisedCount] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(REVISION_WORDS_COUNT_KEY);
+      return saved ? parseInt(saved, 10) : 0;
+    } catch {
+      return 0;
+    }
+  });
 
   // Daily goal based deck size (3, 5, or 10 cards)
   const initialGoalSize = [3, 5, 10].includes(profile.dailyGoal) ? profile.dailyGoal : 5;
@@ -89,8 +101,20 @@ export const WiederholenView: React.FC = () => {
     addXP(xpGained);
     recordGameResult(finalKnownCount, deck.length, deck.slice(0, finalKnownCount).map((d) => d.id));
 
-    // Trigger Native AdMob asynchronously (Zero delay / non-blocking)
-    if (!profile.isPremium) {
+    // Cumulative 10-words milestone ad check
+    const prevCount = cumulativeRevisedCount;
+    const newCount = prevCount + deck.length;
+    try {
+      localStorage.setItem(REVISION_WORDS_COUNT_KEY, String(newCount));
+    } catch {}
+    setCumulativeRevisedCount(newCount);
+
+    const prevMilestone = Math.floor(prevCount / 10);
+    const newMilestone = Math.floor(newCount / 10);
+    const crossedTenWordsMilestone = newMilestone > prevMilestone;
+
+    // Trigger Native AdMob ONLY when 10 cumulative words are reached
+    if (!profile.isPremium && crossedTenWordsMilestone) {
       showGoogleInterstitialAd();
     }
 
@@ -129,7 +153,7 @@ export const WiederholenView: React.FC = () => {
             {t('deck_finished_sub')}
           </p>
 
-          <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="grid grid-cols-2 gap-3 mb-4">
             <div className="bg-[#05FFA1] border-3 border-black rounded-2xl p-3 shadow-[3px_3px_0px_#000000]">
               <span className="text-xs font-black text-black block font-cartoon">
                 {t('knew_immediately')}
@@ -143,6 +167,16 @@ export const WiederholenView: React.FC = () => {
               <span className="text-2xl font-black text-black font-cartoon">{repeatCount}</span>
             </div>
           </div>
+
+          {/* 10-Words Milestone Tracker */}
+          {!profile.isPremium && (
+            <div className="mb-4 bg-[#FFFB96]/60 border-2 border-black rounded-2xl p-2.5 text-xs font-bold text-black flex items-center justify-between shadow-[2px_2px_0px_#000000]">
+              <span>📊 Milestone Progress:</span>
+              <span className="font-black font-cartoon text-black">
+                {cumulativeRevisedCount % 10}/10 words revised towards next ad break
+              </span>
+            </div>
+          )}
 
           {/* High-eCPM Rewarded Ad Action (Bonus Revision XP) */}
           {!hasClaimedBonusXP && (
