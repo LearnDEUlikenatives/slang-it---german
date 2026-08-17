@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { SLANG_DATABASE } from '../data/slangDatabase';
 import { SlangWord } from '../types';
 import { speakGerman, sounds } from '../utils/audio';
-import { AdInterstitialModal } from './AdInterstitialModal';
-import { showGoogleRewardVideoAd } from '../services/admobService';
+import { showGoogleInterstitialAd, showGoogleRewardVideoAd } from '../services/admobService';
 import { useGame } from '../context/GameContext';
 import { useTranslation, LANGUAGES } from '../utils/translations';
 import { getSlangMeaning } from '../utils/slangTranslations';
@@ -36,7 +35,6 @@ export const WiederholenView: React.FC = () => {
   const [isFlipped, setIsFlipped] = useState(false);
   const [knownCount, setKnownCount] = useState(0);
   const [repeatCount, setRepeatCount] = useState(0);
-  const [showRevisionAd, setShowRevisionAd] = useState(false);
   const [hasClaimedBonusXP, setHasClaimedBonusXP] = useState(false);
   const [isDeckFinished, setIsDeckFinished] = useState(false);
 
@@ -91,9 +89,9 @@ export const WiederholenView: React.FC = () => {
     addXP(xpGained);
     recordGameResult(finalKnownCount, deck.length, deck.slice(0, finalKnownCount).map((d) => d.id));
 
-    // Show ad immediately right after completing the revision cards
+    // Trigger Native AdMob asynchronously (Zero delay / non-blocking)
     if (!profile.isPremium) {
-      setShowRevisionAd(true);
+      showGoogleInterstitialAd();
     }
 
     try {
@@ -183,14 +181,6 @@ export const WiederholenView: React.FC = () => {
             <span>{t('restart_deck')} ({sessionCardCount} {t('cards') || 'Cards'})</span>
           </button>
         </div>
-
-        {/* Ad display immediately on finish */}
-        <AdInterstitialModal
-          isOpen={showRevisionAd}
-          onClose={() => setShowRevisionAd(false)}
-          countdownSeconds={5}
-          adContext="revision_deck"
-        />
       </div>
     );
   }

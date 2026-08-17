@@ -3,8 +3,7 @@ import { Player, SlangWord } from '../types';
 import { SLANG_DATABASE } from '../data/slangDatabase';
 import { CartoonAvatar, AVATAR_LIST } from './CartoonAvatar';
 import { AnswerFeedbackModal } from './AnswerFeedbackModal';
-import { AdInterstitialModal } from './AdInterstitialModal';
-import { showGoogleRewardVideoAd } from '../services/admobService';
+import { showGoogleInterstitialAd, showGoogleRewardVideoAd } from '../services/admobService';
 import { sounds } from '../utils/audio';
 import { useGame } from '../context/GameContext';
 import { useTranslation } from '../utils/translations';
@@ -56,7 +55,6 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
   const [isGameOver, setIsGameOver] = useState(false);
-  const [showPartyFinishAd, setShowPartyFinishAd] = useState(false);
   const [hasClaimedPartyBonusXP, setHasClaimedPartyBonusXP] = useState(false);
 
   const autoNextTimeoutRef = useRef<any>(null);
@@ -247,9 +245,9 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
     recordPartyGame(true);
     addXP(150);
 
-    // Trigger Ad for free users upon finishing a round under Party
+    // Trigger Native AdMob asynchronously (Zero delay / non-blocking)
     if (!profile.isPremium) {
-      setShowPartyFinishAd(true);
+      showGoogleInterstitialAd();
     }
 
     try {
@@ -482,14 +480,6 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
               </button>
             )}
           </div>
-
-          {/* Ad Display for Free Users Upon Finishing a Party Match */}
-          <AdInterstitialModal
-            isOpen={showPartyFinishAd}
-            onClose={() => setShowPartyFinishAd(false)}
-            countdownSeconds={5}
-            adContext="party_finish"
-          />
         </div>
       </div>
     );
