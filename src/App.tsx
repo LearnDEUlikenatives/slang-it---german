@@ -12,6 +12,7 @@ import { SettingsView } from './components/SettingsView';
 import { OnboardingModal } from './components/OnboardingModal';
 import { PaymentGateModal } from './components/PaymentGateModal';
 import { AuthModal } from './components/AuthModal';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { initializeAdMob } from './services/admobService';
 import { SlangWord } from './types';
 import { App as CapacitorApp } from '@capacitor/app';
@@ -162,46 +163,48 @@ function MainAppContent() {
 
       {/* Main Content Area */}
       <main className="flex-1 w-full max-w-7xl mx-auto p-2 sm:p-4">
-        {activeTab === 'home' && (
-          <HomeDashboard
-            onNavigate={(tab) => {
-              setPracticeWord(undefined);
-              setActiveTab(tab);
-            }}
-            onPracticeSlang={handlePracticeSlang}
-          />
-        )}
+        <ErrorBoundary>
+          {activeTab === 'home' && (
+            <HomeDashboard
+              onNavigate={(tab) => {
+                setPracticeWord(undefined);
+                setActiveTab(tab);
+              }}
+              onPracticeSlang={handlePracticeSlang}
+            />
+          )}
 
-        {activeTab === 'spielen' && (
-          <GameScreen
-            preselectedSlang={practiceWord}
-            onBackToMenu={() => setActiveTab('home')}
-            registerBackHandler={(handler) => {
-              gameScreenBackRef.current = handler;
-            }}
-          />
-        )}
+          {activeTab === 'spielen' && (
+            <GameScreen
+              preselectedSlang={practiceWord}
+              onBackToMenu={() => setActiveTab('home')}
+              registerBackHandler={(handler) => {
+                gameScreenBackRef.current = handler;
+              }}
+            />
+          )}
 
-        {activeTab === 'party' && (
-          <PartyMode
-            onBackToMenu={() => setActiveTab('home')}
-            registerBackHandler={(handler) => {
-              partyScreenBackRef.current = handler;
-            }}
-          />
-        )}
+          {activeTab === 'party' && (
+            <PartyMode
+              onBackToMenu={() => setActiveTab('home')}
+              registerBackHandler={(handler) => {
+                partyScreenBackRef.current = handler;
+              }}
+            />
+          )}
 
-        {activeTab === 'lernen' && (
-          <LernenView onPracticeSlang={handlePracticeSlang} />
-        )}
+          {activeTab === 'lernen' && (
+            <LernenView onPracticeSlang={handlePracticeSlang} />
+          )}
 
-        {activeTab === 'wiederholen' && (
-          <WiederholenView />
-        )}
+          {activeTab === 'wiederholen' && (
+            <WiederholenView />
+          )}
 
-        {activeTab === 'settings' && (
-          <SettingsView />
-        )}
+          {activeTab === 'settings' && (
+            <SettingsView />
+          )}
+        </ErrorBoundary>
       </main>
 
       {/* Bottom Mobile Navigation */}

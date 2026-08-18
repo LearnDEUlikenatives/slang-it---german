@@ -3,6 +3,21 @@
 class SoundEngine {
   private ctx: AudioContext | null = null;
   private enabled: boolean = true;
+  private isUnlocked: boolean = false;
+
+  constructor() {
+    if (typeof window !== 'undefined') {
+      const unlock = () => {
+        this.unlockAudio();
+        window.removeEventListener('touchstart', unlock);
+        window.removeEventListener('click', unlock);
+        window.removeEventListener('keydown', unlock);
+      };
+      window.addEventListener('touchstart', unlock, { passive: true, once: true });
+      window.addEventListener('click', unlock, { passive: true, once: true });
+      window.addEventListener('keydown', unlock, { passive: true, once: true });
+    }
+  }
 
   private initCtx() {
     if (!this.ctx && typeof window !== 'undefined') {
@@ -12,8 +27,19 @@ class SoundEngine {
       }
     }
     if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
+      this.ctx.resume().catch(() => {});
     }
+  }
+
+  public unlockAudio() {
+    if (this.isUnlocked) return;
+    try {
+      this.initCtx();
+      if (this.ctx && this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => {});
+      }
+      this.isUnlocked = true;
+    } catch {}
   }
 
   public setEnabled(val: boolean) {
@@ -226,7 +252,14 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
 }
 
 export function speakGerman(text: string, onEnd?: () => void) {
-  if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+  if (typeof window === 'undefined') {
+    onEnd?.();
+    return;
+  }
+
+  // Check if browser/Android WebView supports speechSynthesis
+  if (!('speechSynthesis' in window) || !window.speechSynthesis) {
+    console.warn('Speech synthesis not available in this environment');
     onEnd?.();
     return;
   }
@@ -242,9 +275,14 @@ export function speakGerman(text: string, onEnd?: () => void) {
 
   // Clean text and prepare utterance
   const cleanedText = text.replace(/_+/g, ' ').replace(/[«»"]/g, '').trim();
+  if (!cleanedText) {
+    onEnd?.();
+    return;
+  }
+
   const utterance = new SpeechSynthesisUtterance(cleanedText);
   utterance.lang = 'de-DE';
-  utterance.rate = 0.92; // Natural tempo
+  utterance.rate = 0.90; // Natural tempo
   utterance.pitch = 1.0;
   utterance.volume = 1.0;
 
@@ -281,10 +319,12 @@ export function speakGerman(text: string, onEnd?: () => void) {
 
   try {
     window.speechSynthesis.speak(utterance);
-    // Chrome bug workaround where long utterance or background tab pauses speech
-    if (window.speechSynthesis.paused) {
-      window.speechSynthesis.resume();
-    }
+    // Workaround for Android / Chromium WebView where speak() doesn't start until resumed
+    setTimeout(() => {
+      if (window.speechSynthesis && window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
+    }, 50);
   } catch (err) {
     console.error('Failed to trigger speak:', err);
     finish();
