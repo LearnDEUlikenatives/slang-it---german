@@ -3,7 +3,7 @@ import { useGame } from '../context/GameContext';
 import { useTranslation, LANGUAGES } from '../utils/translations';
 import { getSlangMeaning } from '../utils/slangTranslations';
 import { SlangWord } from '../types';
-import { sounds } from '../utils/audio';
+import { sounds, speakGerman } from '../utils/audio';
 import { Check, X, ArrowRight, Sparkles, Volume2 } from 'lucide-react';
 
 interface Props {
@@ -30,12 +30,7 @@ export const AnswerFeedbackModal: React.FC<Props> = ({
 
   const handleSpeak = () => {
     sounds.playPop();
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(slang.term);
-      utterance.lang = 'de-DE';
-      utterance.rate = 0.9;
-      window.speechSynthesis.speak(utterance);
-    }
+    speakGerman(`${slang.article ? slang.article + ' ' : ''}${slang.term}`);
   };
 
   return (

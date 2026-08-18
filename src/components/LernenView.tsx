@@ -310,7 +310,7 @@ export const LernenView: React.FC<Props> = ({ onPracticeSlang }) => {
               <button
                 onClick={() => {
                   sounds.playPop();
-                  setSelectedRegion('bavaria');
+                  setSelectedRegion('bayern');
                 }}
                 className="cartoon-btn-sm px-3 py-1.5 rounded-xl bg-[#01CDFE]/30 hover:bg-[#01CDFE]/50 text-black border-2 border-black font-black text-xs font-cartoon shadow-[2px_2px_0px_#000000]"
               >
@@ -319,7 +319,7 @@ export const LernenView: React.FC<Props> = ({ onPracticeSlang }) => {
               <button
                 onClick={() => {
                   sounds.playPop();
-                  setSelectedCategory('youth');
+                  setSelectedCategory('jugendsprache');
                 }}
                 className="cartoon-btn-sm px-3 py-1.5 rounded-xl bg-[#FF71CE]/30 hover:bg-[#FF71CE]/50 text-black border-2 border-black font-black text-xs font-cartoon shadow-[2px_2px_0px_#000000]"
               >

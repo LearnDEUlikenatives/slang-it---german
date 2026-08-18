@@ -4,15 +4,13 @@ import { SLANG_DATABASE, CATEGORY_LABELS, REGION_LABELS, RARITY_LABELS } from '.
 import { CartoonAvatar } from './CartoonAvatar';
 import { AnswerFeedbackModal } from './AnswerFeedbackModal';
 import { showGoogleInterstitialAd, showGoogleRewardVideoAd } from '../services/admobService';
-import { sounds, speakGerman, createSpeechRecognizer } from '../utils/audio';
+import { sounds, speakGerman } from '../utils/audio';
 import { useGame } from '../context/GameContext';
 import { useTranslation, LANGUAGES } from '../utils/translations';
 import { getSlangMeaning } from '../utils/slangTranslations';
 import {
   Sparkles,
   Volume2,
-  Mic,
-  MicOff,
   Flame,
   HelpCircle,
   Clock,
@@ -35,7 +33,7 @@ interface Props {
 }
 
 export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, registerBackHandler }) => {
-  const { profile, addXP, recordGameResult, recordVoiceGuess, setShowPaymentModal } = useGame();
+  const { profile, addXP, recordGameResult, setShowPaymentModal } = useGame();
   const { t } = useTranslation(profile.systemLanguage);
 
   // Config State
@@ -64,12 +62,6 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
   const [hasClaimedDoubleXP, setHasClaimedDoubleXP] = useState(false);
   const [gameHistory, setGameHistory] = useState<Array<{ slang: SlangWord; chosen: string; isCorrect: boolean }>>([]);
   const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
-  
-  // Voice recognition state
-  const [isListening, setIsListening] = useState(false);
-  const [voiceTranscript, setVoiceTranscript] = useState('');
-  const [voiceError, setVoiceError] = useState<string | null>(null);
-  const speechRecognizerRef = useRef<any>(null);
 
   // Timer Refs
   const timerRef = useRef<any>(null);
@@ -174,8 +166,6 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
     setSelectedOption(null);
     setIsAnswerRevealed(false);
     setRevealedHints(0);
-    setVoiceTranscript('');
-    setVoiceError(null);
 
     // Prepare options based on DIFFICULTY:
     // Easy: 2 options (1 correct + 1 distractor)
@@ -326,58 +316,10 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
 
   const handleSpeakDialogue = () => {
     const currentQ = questions[currentIndex];
+    if (!currentQ) return;
     sounds.playPop();
     const textToSpeak = `${currentQ.scenario.speaker1}: ${currentQ.scenario.text1}`;
     speakGerman(textToSpeak);
-  };
-
-  // Voice Input Handler
-  const toggleVoiceInput = () => {
-    if (!profile.voiceInputEnabled) return;
-    if (isListening) {
-      speechRecognizerRef.current?.stop();
-      setIsListening(false);
-      return;
-    }
-
-    sounds.playPop();
-    recordVoiceGuess();
-    setIsListening(true);
-    setVoiceError(null);
-    setVoiceTranscript('');
-
-    const recognizer = createSpeechRecognizer(
-      (transcript) => {
-        setVoiceTranscript(transcript);
-        const currentQ = questions[currentIndex];
-        const normalized = transcript.toLowerCase();
-        
-        if (normalized.includes(currentQ.term.toLowerCase())) {
-          handleAnswer(currentQ.term, false);
-          recognizer?.stop();
-          setIsListening(false);
-        } else {
-          for (const opt of shuffledOptions) {
-            if (normalized.includes(opt.toLowerCase())) {
-              handleAnswer(opt, false);
-              recognizer?.stop();
-              setIsListening(false);
-              break;
-            }
-          }
-        }
-      },
-      () => {
-        setVoiceError('Microphone not recognized or speech unclear');
-        setIsListening(false);
-      },
-      () => {
-        setIsListening(false);
-      }
-    );
-
-    speechRecognizerRef.current = recognizer;
-    recognizer?.start();
   };
 
   const currentQ = questions[currentIndex];
@@ -710,10 +652,19 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
           {/* Speaker 1 (Context Prompt) */}
           <div className="flex items-start gap-2.5">
             <CartoonAvatar avatarId={currentQ.scenario.avatar1} size="md" className="shrink-0" />
-            <div className="bg-white border-2 border-black rounded-2xl rounded-tl-sm p-2.5 shadow-[1.5px_1.5px_0px_#000000] max-w-[85%]">
-              <span className="text-[10px] font-black text-black font-cartoon block mb-0.5">
-                {currentQ.scenario.speaker1}:
-              </span>
+            <div className="bg-white border-2 border-black rounded-2xl rounded-tl-sm p-2.5 shadow-[1.5px_1.5px_0px_#000000] max-w-[85%] relative">
+              <div className="flex items-center justify-between gap-2 mb-0.5">
+                <span className="text-[10px] font-black text-black font-cartoon block">
+                  {currentQ.scenario.speaker1}:
+                </span>
+                <button
+                  onClick={handleSpeakDialogue}
+                  className="p-1 rounded-lg bg-[#01CDFE] border border-black hover:bg-[#01CDFE]/80 text-black shadow-[1px_1px_0px_#000000]"
+                  title="Listen to dialogue"
+                >
+                  <Volume2 className="w-3 h-3 text-black" />
+                </button>
+              </div>
               <p className="text-xs sm:text-sm font-bold text-black leading-snug">
                 "{currentQ.scenario.text1}"
               </p>

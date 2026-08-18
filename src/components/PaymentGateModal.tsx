@@ -8,7 +8,6 @@ import confetti from 'canvas-confetti';
 export const PaymentGateModal: React.FC = () => {
   const { profile, updateProfile, showPaymentModal, setShowPaymentModal } = useGame();
   const { t } = useTranslation(profile.systemLanguage);
-  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'lifetime'>('lifetime');
   const [isSuccess, setIsSuccess] = useState(false);
 
   if (!showPaymentModal) return null;
@@ -87,7 +86,7 @@ export const PaymentGateModal: React.FC = () => {
             </div>
 
             <p className="text-xs font-bold text-black/80 mt-2">
-              Subscribe to Pro for $10 to eliminate all ad interruptions throughout the entire app and unlock unlimited party & dialect access!
+              Subscribe to Pro for just $4.99/month to eliminate all ad interruptions throughout the entire app and unlock unlimited party & dialect access!
             </p>
 
             {/* Perks List */}
@@ -114,48 +113,23 @@ export const PaymentGateModal: React.FC = () => {
               </div>
             </div>
 
-            {/* Pricing Options */}
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <button
-                type="button"
-                onClick={() => {
-                  sounds.playPop();
-                  setSelectedPlan('lifetime');
-                }}
-                className={`cartoon-card p-3 rounded-2xl text-left transition-all relative border-2 border-black ${
-                  selectedPlan === 'lifetime'
-                    ? 'bg-[#05FFA1] ring-3 ring-black shadow-[4px_4px_0px_#000000]'
-                    : 'bg-neutral-100 opacity-70'
-                }`}
-              >
-                <span className="absolute -top-2.5 -right-2 bg-[#FF71CE] text-black font-black text-[9px] px-2 py-0.5 rounded-full border border-black font-cartoon animate-pulse">
-                  BEST VALUE
-                </span>
-                <span className="text-[10px] font-black uppercase text-black block font-cartoon">
-                  Pro Lifetime
-                </span>
-                <span className="text-2xl font-black text-black font-cartoon">$10</span>
-                <span className="text-[10px] text-black/70 font-bold block">One-time • No Ads</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  sounds.playPop();
-                  setSelectedPlan('monthly');
-                }}
-                className={`cartoon-card p-3 rounded-2xl text-left transition-all border-2 border-black ${
-                  selectedPlan === 'monthly'
-                    ? 'bg-[#FFFB96] ring-3 ring-black shadow-[4px_4px_0px_#000000]'
-                    : 'bg-neutral-100 opacity-70'
-                }`}
-              >
-                <span className="text-[10px] font-black uppercase text-black block font-cartoon">
-                  Monthly Pass
-                </span>
-                <span className="text-2xl font-black text-black font-cartoon">$2.99</span>
-                <span className="text-[10px] text-black/70 font-bold block">/ month • No Ads</span>
-              </button>
+            {/* Single Monthly Pricing Box */}
+            <div className="mb-4">
+              <div className="cartoon-card p-4 rounded-2xl bg-[#FFFB96] border-3 border-black shadow-[4px_4px_0px_#000000] flex items-center justify-between">
+                <div className="text-left">
+                  <span className="text-[10px] font-black uppercase text-black block font-cartoon">
+                    Pro Monthly Subscription
+                  </span>
+                  <div className="flex items-baseline gap-1 mt-0.5">
+                    <span className="text-3xl font-black text-black font-cartoon">$4.99</span>
+                    <span className="text-xs text-black/80 font-black font-cartoon">/ month</span>
+                  </div>
+                  <span className="text-[11px] text-black/70 font-bold block mt-0.5">Cancel anytime • Instant access</span>
+                </div>
+                <div className="bg-[#05FFA1] border-2 border-black px-3 py-1.5 rounded-xl font-cartoon text-xs font-black text-black shadow-[2px_2px_0px_#000000]">
+                  🔥 VIP PASS
+                </div>
+              </div>
             </div>
 
             {/* Action Upgrade Button */}
@@ -165,7 +139,7 @@ export const PaymentGateModal: React.FC = () => {
               className="cartoon-btn w-full py-3.5 rounded-2xl bg-[#05FFA1] hover:bg-[#05FFA1]/80 font-black text-base text-black font-cartoon flex items-center justify-center gap-2 border-3 border-black shadow-[4px_4px_0px_#000000] active:scale-98 transition-transform"
             >
               <Zap className="w-5 h-5 fill-black text-black" />
-              <span>{selectedPlan === 'lifetime' ? 'Get Pro for $10 (Remove Ads)' : 'Subscribe to Pro for $2.99/mo'}</span>
+              <span>Subscribe to Pro for $4.99 / month</span>
             </button>
 
             {/* Clear Dismiss / Free Mode Button */}

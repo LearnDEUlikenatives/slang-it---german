@@ -194,30 +194,101 @@ class SoundEngine {
 export const sounds = new SoundEngine();
 
 // Text to Speech
+let cachedVoices: SpeechSynthesisVoice[] = [];
+
+function loadVoices(): Promise<SpeechSynthesisVoice[]> {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      resolve([]);
+      return;
+    }
+    const current = window.speechSynthesis.getVoices();
+    if (current.length > 0) {
+      cachedVoices = current;
+      resolve(current);
+      return;
+    }
+    window.speechSynthesis.onvoiceschanged = () => {
+      cachedVoices = window.speechSynthesis.getVoices();
+      resolve(cachedVoices);
+    };
+    // Fallback if onvoiceschanged doesn't trigger
+    setTimeout(() => {
+      cachedVoices = window.speechSynthesis.getVoices();
+      resolve(cachedVoices);
+    }, 200);
+  });
+}
+
+// Pre-trigger voice load in browser
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  loadVoices();
+}
+
 export function speakGerman(text: string, onEnd?: () => void) {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
     onEnd?.();
     return;
   }
 
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'de-DE';
-  utterance.rate = 0.95; // slightly relaxed for clear slang comprehension
-  utterance.pitch = 1.05;
+  try {
+    // If speech synthesis is paused or stuck, resume it
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
+    // Cancel any ongoing/stuck utterances
+    window.speechSynthesis.cancel();
+  } catch {}
 
-  const voices = window.speechSynthesis.getVoices();
-  const germanVoice = voices.find(v => v.lang.startsWith('de') || v.lang.includes('DE'));
+  // Clean text and prepare utterance
+  const cleanedText = text.replace(/_+/g, ' ').replace(/[«»"]/g, '').trim();
+  const utterance = new SpeechSynthesisUtterance(cleanedText);
+  utterance.lang = 'de-DE';
+  utterance.rate = 0.92; // Natural tempo
+  utterance.pitch = 1.0;
+  utterance.volume = 1.0;
+
+  let hasEnded = false;
+  const finish = () => {
+    if (!hasEnded) {
+      hasEnded = true;
+      onEnd?.();
+    }
+  };
+
+  utterance.onend = finish;
+  utterance.onerror = (e) => {
+    console.warn('Speech synthesis error or cancelled:', e);
+    finish();
+  };
+
+  // Safety timeout in case browser never fires onend
+  setTimeout(finish, 8000);
+
+  const voices = cachedVoices.length > 0 ? cachedVoices : window.speechSynthesis.getVoices();
+  // Find a German voice
+  const germanVoice = voices.find(
+    (v) =>
+      v.lang.toLowerCase() === 'de-de' ||
+      v.lang.toLowerCase().startsWith('de') ||
+      v.name.toLowerCase().includes('german') ||
+      v.name.toLowerCase().includes('deutsch')
+  );
+
   if (germanVoice) {
     utterance.voice = germanVoice;
   }
 
-  if (onEnd) {
-    utterance.onend = () => onEnd();
-    utterance.onerror = () => onEnd();
+  try {
+    window.speechSynthesis.speak(utterance);
+    // Chrome bug workaround where long utterance or background tab pauses speech
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
+  } catch (err) {
+    console.error('Failed to trigger speak:', err);
+    finish();
   }
-
-  window.speechSynthesis.speak(utterance);
 }
 
 // Voice Recognition Helper (Web Speech Recognition API)

@@ -3,22 +3,11 @@ import { Player, SlangWord } from '../types';
 import { SLANG_DATABASE } from '../data/slangDatabase';
 import { CartoonAvatar, AVATAR_LIST } from './CartoonAvatar';
 import { AnswerFeedbackModal } from './AnswerFeedbackModal';
-import { showGoogleInterstitialAd, showGoogleRewardVideoAd } from '../services/admobService';
+import { showGoogleInterstitialAd } from '../services/admobService';
 import { sounds } from '../utils/audio';
 import { useGame } from '../context/GameContext';
 import { useTranslation } from '../utils/translations';
-import {
-  Play,
-  RotateCcw,
-  Plus,
-  Trash2,
-  Crown,
-  Volume2,
-  Sparkles,
-  Lock,
-  Clock,
-  Zap,
-} from 'lucide-react';
+import { Play, RotateCcw, Plus, Trash2, Crown, Sparkles, Lock, Clock, Zap } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 const PARTY_COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 Hours Cooldown for Free Users
@@ -109,7 +98,6 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
   const [isGameOver, setIsGameOver] = useState(false);
-  const [hasClaimedPartyBonusXP, setHasClaimedPartyBonusXP] = useState(false);
 
   const autoNextTimeoutRef = useRef<any>(null);
 
@@ -217,7 +205,6 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
     setCurrentRound(0);
     setActivePlayerTurnIndex(0);
     setIsGameOver(false);
-    setHasClaimedPartyBonusXP(false);
     setIsLobby(false);
     loadRound(0, selected);
   };
@@ -391,7 +378,7 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
                 className="cartoon-btn-sm px-3 py-1.5 rounded-xl bg-[#05FFA1] hover:bg-[#05FFA1]/80 font-black text-xs text-black font-cartoon flex items-center justify-center gap-1.5 border-2 border-black shadow-[2px_2px_0px_#000000] shrink-0"
               >
                 <Zap className="w-3.5 h-3.5 fill-black" />
-                <span>Play Now (Unlock Pro $10)</span>
+                <span>Play Now (Unlock Pro)</span>
               </button>
             </div>
           ) : (
@@ -410,7 +397,7 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
                 }}
                 className="text-[10px] font-black text-black underline font-cartoon hover:text-black/80 shrink-0"
               >
-                Get Unlimited (Pro $10)
+                Get Unlimited (Pro)
               </button>
             </div>
           )}
@@ -501,7 +488,7 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
             {isFreeCooldown ? (
               <>
                 <Lock className="w-5 h-5 text-black" />
-                <span>Unlock Pro for $10 (or wait {formatCooldownTime(cooldownRemainingSeconds)})</span>
+                <span>Unlock Pro (or wait {formatCooldownTime(cooldownRemainingSeconds)})</span>
               </>
             ) : (
               <>
@@ -571,35 +558,6 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
               </div>
             ))}
           </div>
-
-          {/* High-eCPM Rewarded Ad Action (Party Winner Bonus XP) */}
-          {!hasClaimedPartyBonusXP && (
-            <div className="mb-4">
-              <button
-                onClick={() => {
-                  sounds.playPop();
-                  showGoogleRewardVideoAd(() => {
-                    addXP(150);
-                    setHasClaimedPartyBonusXP(true);
-                    sounds.playLevelUp();
-                    try {
-                      confetti({ particleCount: 120, spread: 80 });
-                    } catch {}
-                  });
-                }}
-                className="cartoon-btn w-full py-3 rounded-2xl bg-gradient-to-r from-[#FF71CE] via-[#FFFB96] to-[#05FFA1] text-black font-black text-xs sm:text-sm font-cartoon flex items-center justify-center gap-2 border-3 border-black shadow-[4px_4px_0px_#000000] hover:scale-[1.02] active:scale-[0.98] transition-transform animate-pulse"
-              >
-                <Sparkles className="w-4 h-4 fill-black" />
-                <span>Claim +150 Party Bonus XP • Watch Short Video</span>
-              </button>
-            </div>
-          )}
-
-          {hasClaimedPartyBonusXP && (
-            <div className="mb-4 py-2 px-3 bg-[#05FFA1] border-2 border-black rounded-2xl font-cartoon text-xs font-black text-black shadow-[2px_2px_0px_#000000]">
-              ✨ +150 Party Bonus XP Claimed!
-            </div>
-          )}
 
           {/* Actions */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5">
