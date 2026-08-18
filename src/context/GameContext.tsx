@@ -118,70 +118,94 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // Check existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser(session.user);
-        setCloudSyncStatus('syncing');
-        fetchCloudProfile(session.user.id).then((cloudData) => {
-          if (cloudData) {
-            setProfile((prev) => ({
-              ...prev,
-              name: cloudData.name || prev.name,
-              avatarId: cloudData.avatarId || prev.avatarId,
-              xp: Math.max(prev.xp, cloudData.xp || 0),
-              level: Math.max(prev.level, cloudData.level || 1),
-              streak: Math.max(prev.streak, cloudData.streak || 1),
-              germanLevel: cloudData.germanLevel || prev.germanLevel,
-              preferredRegion: cloudData.preferredRegion || prev.preferredRegion,
-              favoritedWordIds: Array.from(new Set([...prev.favoritedWordIds, ...(cloudData.favoritedWordIds || [])])),
-              learnedWordIds: Array.from(new Set([...prev.learnedWordIds, ...(cloudData.learnedWordIds || [])])),
-            }));
-            setCloudSyncStatus('synced');
-          } else {
-            // First time login - upload local profile to cloud
-            syncProfileToCloud(profile, session.user.id).then(() => {
-              setCloudSyncStatus('synced');
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        if (session?.user) {
+          setUser(session.user);
+          setCloudSyncStatus('syncing');
+          fetchCloudProfile(session.user.id)
+            .then((cloudData) => {
+              if (cloudData) {
+                setProfile((prev) => ({
+                  ...prev,
+                  name: cloudData.name || prev.name,
+                  avatarId: cloudData.avatarId || prev.avatarId,
+                  xp: Math.max(prev.xp, cloudData.xp || 0),
+                  level: Math.max(prev.level, cloudData.level || 1),
+                  streak: Math.max(prev.streak, cloudData.streak || 1),
+                  germanLevel: cloudData.germanLevel || prev.germanLevel,
+                  preferredRegion: cloudData.preferredRegion || prev.preferredRegion,
+                  favoritedWordIds: Array.from(new Set([...prev.favoritedWordIds, ...(cloudData.favoritedWordIds || [])])),
+                  learnedWordIds: Array.from(new Set([...prev.learnedWordIds, ...(cloudData.learnedWordIds || [])])),
+                }));
+                setCloudSyncStatus('synced');
+              } else {
+                // First time login - upload local profile to cloud
+                syncProfileToCloud(profile, session.user.id)
+                  .then(() => {
+                    setCloudSyncStatus('synced');
+                  })
+                  .catch(() => {
+                    setCloudSyncStatus('guest');
+                  });
+              }
+            })
+            .catch(() => {
+              setCloudSyncStatus('guest');
             });
-          }
-        });
-      } else {
-        setUser(null);
+        } else {
+          setUser(null);
+          setCloudSyncStatus('guest');
+        }
+      })
+      .catch((err) => {
+        console.warn('Supabase getSession notice:', err);
         setCloudSyncStatus('guest');
-      }
-    });
+      });
 
     // Listen for auth changes (e.g. Google OAuth redirect, login, logout)
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        setUser(session.user);
-        setCloudSyncStatus('syncing');
-        const cloudData = await fetchCloudProfile(session.user.id);
-        if (cloudData) {
-          setProfile((prev) => ({
-            ...prev,
-            name: cloudData.name || prev.name,
-            avatarId: cloudData.avatarId || prev.avatarId,
-            xp: Math.max(prev.xp, cloudData.xp || 0),
-            level: Math.max(prev.level, cloudData.level || 1),
-            streak: Math.max(prev.streak, cloudData.streak || 1),
-            germanLevel: cloudData.germanLevel || prev.germanLevel,
-            preferredRegion: cloudData.preferredRegion || prev.preferredRegion,
-            favoritedWordIds: Array.from(new Set([...prev.favoritedWordIds, ...(cloudData.favoritedWordIds || [])])),
-            learnedWordIds: Array.from(new Set([...prev.learnedWordIds, ...(cloudData.learnedWordIds || [])])),
-          }));
-          setCloudSyncStatus('synced');
-        } else {
-          await syncProfileToCloud(profile, session.user.id);
-          setCloudSyncStatus('synced');
+    let authSubscription: { unsubscribe: () => void } | null = null;
+    try {
+      const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+        try {
+          if (session?.user) {
+            setUser(session.user);
+            setCloudSyncStatus('syncing');
+            const cloudData = await fetchCloudProfile(session.user.id).catch(() => null);
+            if (cloudData) {
+              setProfile((prev) => ({
+                ...prev,
+                name: cloudData.name || prev.name,
+                avatarId: cloudData.avatarId || prev.avatarId,
+                xp: Math.max(prev.xp, cloudData.xp || 0),
+                level: Math.max(prev.level, cloudData.level || 1),
+                streak: Math.max(prev.streak, cloudData.streak || 1),
+                germanLevel: cloudData.germanLevel || prev.germanLevel,
+                preferredRegion: cloudData.preferredRegion || prev.preferredRegion,
+                favoritedWordIds: Array.from(new Set([...prev.favoritedWordIds, ...(cloudData.favoritedWordIds || [])])),
+                learnedWordIds: Array.from(new Set([...prev.learnedWordIds, ...(cloudData.learnedWordIds || [])])),
+              }));
+              setCloudSyncStatus('synced');
+            } else {
+              await syncProfileToCloud(profile, session.user.id).catch(() => false);
+              setCloudSyncStatus('synced');
+            }
+          } else {
+            setUser(null);
+            setCloudSyncStatus('guest');
+          }
+        } catch (e) {
+          console.warn('Auth state change handler error:', e);
         }
-      } else {
-        setUser(null);
-        setCloudSyncStatus('guest');
-      }
-    });
+      });
+      authSubscription = authListener?.subscription || null;
+    } catch (e) {
+      console.warn('Failed to attach auth listener:', e);
+    }
 
     return () => {
-      authListener?.subscription.unsubscribe();
+      authSubscription?.unsubscribe();
     };
   }, []);
 
