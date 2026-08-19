@@ -3,7 +3,7 @@ import { Player, SlangWord } from '../types';
 import { SLANG_DATABASE } from '../data/slangDatabase';
 import { CartoonAvatar, AVATAR_LIST } from './CartoonAvatar';
 import { AnswerFeedbackModal } from './AnswerFeedbackModal';
-import { showGoogleInterstitialAd } from '../services/admobService';
+import { loadAndShowInterstitialAd } from '../services/admobService';
 import { sounds } from '../utils/audio';
 import { useGame } from '../context/GameContext';
 import { useTranslation } from '../utils/translations';
@@ -301,7 +301,11 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
 
       // Trigger Native AdMob
       setIsShowingAdLoading(true);
-      await showGoogleInterstitialAd();
+      try {
+        await loadAndShowInterstitialAd();
+      } catch (err) {
+        console.error('Error showing interstitial ad:', err);
+      }
       setIsShowingAdLoading(false);
 
       // Right after match completion (1.2s delay for seamless transition), show Pro subscription offer

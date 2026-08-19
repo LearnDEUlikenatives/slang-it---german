@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { SLANG_DATABASE } from '../data/slangDatabase';
 import { SlangWord } from '../types';
 import { speakGerman, sounds } from '../utils/audio';
-import { showGoogleInterstitialAd } from '../services/admobService';
+import { loadAndShowInterstitialAd } from '../services/admobService';
 import { useGame } from '../context/GameContext';
 import { useTranslation, LANGUAGES } from '../utils/translations';
 import { getSlangMeaning } from '../utils/slangTranslations';
@@ -114,7 +114,11 @@ export const WiederholenView: React.FC = () => {
     // Trigger Native AdMob ONLY when 10 cumulative words are reached
     if (!profile.isPremium && crossedTenWordsMilestone) {
       setIsShowingAdLoading(true);
-      await showGoogleInterstitialAd();
+      try {
+        await loadAndShowInterstitialAd();
+      } catch (err) {
+        console.error('Error showing interstitial ad:', err);
+      }
       setIsShowingAdLoading(false);
     }
 

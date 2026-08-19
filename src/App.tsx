@@ -42,7 +42,7 @@ function MainAppContent() {
 
   // Initialize AdMob smoothly on app launch
   useEffect(() => {
-    initializeAdMob(false);
+    initializeAdMob(false).catch(err => console.error('AdMob init failed:', err));
   }, []);
 
   // Handle Android Hardware / Gesture Back Button
