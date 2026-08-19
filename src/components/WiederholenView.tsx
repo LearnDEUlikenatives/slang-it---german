@@ -47,6 +47,7 @@ export const WiederholenView: React.FC = () => {
   const [knownCount, setKnownCount] = useState(0);
   const [repeatCount, setRepeatCount] = useState(0);
   const [isDeckFinished, setIsDeckFinished] = useState(false);
+  const [isShowingAdLoading, setIsShowingAdLoading] = useState(false);
 
   const currentCard = deck[currentIndex];
 
@@ -91,7 +92,7 @@ export const WiederholenView: React.FC = () => {
     }
   };
 
-  const finishDeck = (finalKnownCount: number) => {
+  const finishDeck = async (finalKnownCount: number) => {
     setIsDeckFinished(true);
     sounds.playLevelUp();
     const xpGained = finalKnownCount * 30 + 100;
@@ -112,7 +113,9 @@ export const WiederholenView: React.FC = () => {
 
     // Trigger Native AdMob ONLY when 10 cumulative words are reached
     if (!profile.isPremium && crossedTenWordsMilestone) {
-      showGoogleInterstitialAd();
+      setIsShowingAdLoading(true);
+      await showGoogleInterstitialAd();
+      setIsShowingAdLoading(false);
     }
 
     try {
@@ -190,6 +193,11 @@ export const WiederholenView: React.FC = () => {
 
   return (
     <div id="wiederholen-view" className="max-w-2xl mx-auto py-4 px-3 sm:px-6">
+      {isShowingAdLoading && (
+        <div className="fixed inset-0 bg-black z-50 flex items-center justify-center">
+          <div className="text-white text-2xl font-black font-cartoon animate-pulse">Loading Ad...</div>
+        </div>
+      )}
       {/* Header & Goal Selector */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-2">
