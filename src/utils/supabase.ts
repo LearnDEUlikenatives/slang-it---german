@@ -60,23 +60,42 @@ export const getSupabase = (): SupabaseClient | null => {
     if (typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
       try {
         CapacitorApp.addListener('appUrlOpen', async (event) => {
-          if (event.url) {
+          if (event.url && (event.url.includes('access_token') || event.url.includes('code=') || event.url.includes('error='))) {
             try {
               await Browser.close();
             } catch {}
 
-            // Handle Supabase auth tokens returned in hash or query params
-            if (event.url.includes('#') || event.url.includes('?')) {
-              const urlObj = new URL(event.url.replace('#', '?'));
-              const accessToken = urlObj.searchParams.get('access_token');
-              const refreshToken = urlObj.searchParams.get('refresh_token');
+            try {
+              // Parse tokens or auth code from URL hash or search params
+              let accessToken: string | null = null;
+              let refreshToken: string | null = null;
+              let code: string | null = null;
+
+              if (event.url.includes('#')) {
+                const hashPart = event.url.substring(event.url.indexOf('#') + 1);
+                const hashParams = new URLSearchParams(hashPart);
+                accessToken = hashParams.get('access_token');
+                refreshToken = hashParams.get('refresh_token');
+              }
+
+              if (!accessToken && event.url.includes('?')) {
+                const queryPart = event.url.substring(event.url.indexOf('?') + 1).split('#')[0];
+                const queryParams = new URLSearchParams(queryPart);
+                accessToken = queryParams.get('access_token');
+                refreshToken = queryParams.get('refresh_token');
+                code = queryParams.get('code');
+              }
 
               if (accessToken && refreshToken && supabaseInstance) {
                 await supabaseInstance.auth.setSession({
                   access_token: accessToken,
                   refresh_token: refreshToken,
                 });
+              } else if (code && supabaseInstance) {
+                await supabaseInstance.auth.exchangeCodeForSession(code);
               }
+            } catch (authParseErr) {
+              console.warn('Error processing deep link OAuth tokens:', authParseErr);
             }
           }
         });
@@ -173,13 +192,13 @@ export async function signInWithGoogle(): Promise<{ error: string | null; url?: 
   const client = getSupabase();
   if (!client) {
     return {
-      error: 'Supabase is not configured yet. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your environment.',
+      error: 'Supabase is not configured yet.',
     };
   }
 
   try {
     const isNative = typeof window !== 'undefined' && Capacitor.isNativePlatform();
-    // For native Android, deep link scheme can be used or window.location.origin
+    // For native Android, deep link scheme is used
     const redirectTo = isNative
       ? 'com.learngermanlikenatives.slangit://auth/callback'
       : window.location.origin;
@@ -188,6 +207,7 @@ export async function signInWithGoogle(): Promise<{ error: string | null; url?: 
       provider: 'google',
       options: {
         redirectTo,
+        skipBrowserRedirect: isNative, // Prevents WebView from crashing into Google 403
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',
