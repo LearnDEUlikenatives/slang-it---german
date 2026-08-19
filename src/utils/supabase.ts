@@ -25,6 +25,12 @@ const getSupabaseAnonKey = (): string => {
 export const isSupabaseConfigured = (): boolean => {
   const url = getSupabaseUrl();
   const key = getSupabaseAnonKey();
+  
+  console.log('--- SUPABASE DEBUG ---');
+  console.log('URL:', url);
+  console.log('KEY:', key);
+  console.log('----------------------');
+
   return Boolean(
     url &&
     key &&
