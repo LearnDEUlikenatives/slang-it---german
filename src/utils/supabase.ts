@@ -5,31 +5,29 @@ import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import { App as CapacitorApp } from '@capacitor/app';
 
-// Static string access for Vite build-time replacement
+// Built-in Supabase Project Configuration (Public Anon Key)
+const DEFAULT_SUPABASE_URL = 'https://vemvetbhrnclcokqfvbk.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZlbXZldGJocm5jbGNva3FmdmJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MTA2MDIsImV4cCI6MjEwMjI4NjYwMn0.9249686HT7O0YQ3oIO9opT6PeY-FYUrgW43ToZmYD08';
+
+// Static string access with built-in fallback for Android APK and Web builds
 const getSupabaseUrl = (): string => {
-  return (
+  const val =
     (import.meta.env.VITE_SUPABASE_URL as string) ||
-    (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_URL ? process.env.VITE_SUPABASE_URL : '') ||
-    ''
-  );
+    (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_URL ? process.env.VITE_SUPABASE_URL : '');
+  return val && val.trim() !== '' ? val : DEFAULT_SUPABASE_URL;
 };
 
 const getSupabaseAnonKey = (): string => {
-  return (
+  const val =
     (import.meta.env.VITE_SUPABASE_ANON_KEY as string) ||
-    (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_ANON_KEY ? process.env.VITE_SUPABASE_ANON_KEY : '') ||
-    ''
-  );
+    (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_ANON_KEY ? process.env.VITE_SUPABASE_ANON_KEY : '');
+  return val && val.trim() !== '' ? val : DEFAULT_SUPABASE_ANON_KEY;
 };
 
 export const isSupabaseConfigured = (): boolean => {
   const url = getSupabaseUrl();
   const key = getSupabaseAnonKey();
-  
-  console.log('--- SUPABASE DEBUG ---');
-  console.log('URL:', url);
-  console.log('KEY:', key);
-  console.log('----------------------');
 
   return Boolean(
     url &&
