@@ -3,6 +3,7 @@ import { useGame } from '../context/GameContext';
 import { useTranslation } from '../utils/translations';
 import { sounds } from '../utils/audio';
 import { isSupabaseConfigured, signInWithEmail, signUpWithEmail, signInWithGoogle } from '../utils/supabase';
+import { Capacitor } from '@capacitor/core';
 import AppLogoImg from '../assets/images/german_slang_logo_1786812856007.jpg';
 import { X, Mail, Lock, User, Sparkles, CheckCircle2, AlertCircle, Cloud, ArrowRight } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -45,8 +46,10 @@ export const AuthModal: React.FC = () => {
     if (error) {
       setErrorMessage(error);
       setLoading(false);
-    } else if (url) {
+    } else if (url && !Capacitor.isNativePlatform()) {
       window.location.href = url;
+    } else {
+      setLoading(false);
     }
   };
 

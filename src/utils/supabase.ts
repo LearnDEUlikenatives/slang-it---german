@@ -1,18 +1,36 @@
 /// <reference types="vite/client" />
 import { createClient, SupabaseClient, User, Session } from '@supabase/supabase-js';
 import { UserProfile } from '../types';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
+import { App as CapacitorApp } from '@capacitor/app';
 
-const env = (import.meta as any).env || {};
-const supabaseUrl = env.VITE_SUPABASE_URL as string | undefined;
-const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY as string | undefined;
+// Static string access for Vite build-time replacement
+const getSupabaseUrl = (): string => {
+  return (
+    (import.meta.env.VITE_SUPABASE_URL as string) ||
+    (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_URL ? process.env.VITE_SUPABASE_URL : '') ||
+    ''
+  );
+};
+
+const getSupabaseAnonKey = (): string => {
+  return (
+    (import.meta.env.VITE_SUPABASE_ANON_KEY as string) ||
+    (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_ANON_KEY ? process.env.VITE_SUPABASE_ANON_KEY : '') ||
+    ''
+  );
+};
 
 export const isSupabaseConfigured = (): boolean => {
+  const url = getSupabaseUrl();
+  const key = getSupabaseAnonKey();
   return Boolean(
-    supabaseUrl &&
-    supabaseAnonKey &&
-    supabaseUrl.trim() !== '' &&
-    supabaseAnonKey.trim() !== '' &&
-    supabaseUrl.startsWith('https://')
+    url &&
+    key &&
+    url.trim() !== '' &&
+    key.trim() !== '' &&
+    url.startsWith('https://')
   );
 };
 
@@ -22,14 +40,46 @@ export const getSupabase = (): SupabaseClient | null => {
   if (!isSupabaseConfigured()) {
     return null;
   }
-  if (!supabaseInstance && supabaseUrl && supabaseAnonKey) {
-    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+  if (!supabaseInstance) {
+    const url = getSupabaseUrl();
+    const key = getSupabaseAnonKey();
+    supabaseInstance = createClient(url, key, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
+        storage: typeof window !== 'undefined' ? window.localStorage : undefined,
       },
     });
+
+    // Native Capacitor deep link listener for OAuth redirect callbacks
+    if (typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
+      try {
+        CapacitorApp.addListener('appUrlOpen', async (event) => {
+          if (event.url) {
+            try {
+              await Browser.close();
+            } catch {}
+
+            // Handle Supabase auth tokens returned in hash or query params
+            if (event.url.includes('#') || event.url.includes('?')) {
+              const urlObj = new URL(event.url.replace('#', '?'));
+              const accessToken = urlObj.searchParams.get('access_token');
+              const refreshToken = urlObj.searchParams.get('refresh_token');
+
+              if (accessToken && refreshToken && supabaseInstance) {
+                await supabaseInstance.auth.setSession({
+                  access_token: accessToken,
+                  refresh_token: refreshToken,
+                });
+              }
+            }
+          }
+        });
+      } catch (e) {
+        console.warn('Capacitor deep link listener init warning:', e);
+      }
+    }
   }
   return supabaseInstance;
 };
@@ -124,7 +174,12 @@ export async function signInWithGoogle(): Promise<{ error: string | null; url?: 
   }
 
   try {
-    const redirectTo = window.location.origin;
+    const isNative = typeof window !== 'undefined' && Capacitor.isNativePlatform();
+    // For native Android, deep link scheme can be used or window.location.origin
+    const redirectTo = isNative
+      ? 'com.learngermanlikenatives.slangit://auth/callback'
+      : window.location.origin;
+
     const { data, error } = await client.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -138,6 +193,15 @@ export async function signInWithGoogle(): Promise<{ error: string | null; url?: 
 
     if (error) {
       return { error: error.message };
+    }
+
+    if (data.url && isNative) {
+      try {
+        await Browser.open({ url: data.url, windowName: '_system' });
+      } catch (browserErr) {
+        console.warn('Browser.open failed, falling back to window.location', browserErr);
+        window.location.href = data.url;
+      }
     }
 
     return { error: null, url: data.url };
