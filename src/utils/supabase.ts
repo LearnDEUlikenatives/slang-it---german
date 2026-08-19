@@ -60,7 +60,10 @@ export const getSupabase = (): SupabaseClient | null => {
     if (typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
       try {
         CapacitorApp.addListener('appUrlOpen', async (event) => {
-          if (event.url && (event.url.includes('access_token') || event.url.includes('code=') || event.url.includes('error='))) {
+          console.log('--- DEEP LINK RECEIVED ---');
+          console.log('URL:', event.url);
+          
+          if (event.url) {
             try {
               await Browser.close();
             } catch {}
@@ -86,13 +89,19 @@ export const getSupabase = (): SupabaseClient | null => {
                 code = queryParams.get('code');
               }
 
+              console.log('Parsed tokens:', { accessToken: !!accessToken, refreshToken: !!refreshToken, code: !!code });
+
               if (accessToken && refreshToken && supabaseInstance) {
                 await supabaseInstance.auth.setSession({
                   access_token: accessToken,
                   refresh_token: refreshToken,
                 });
+                console.log('Session set via tokens');
               } else if (code && supabaseInstance) {
                 await supabaseInstance.auth.exchangeCodeForSession(code);
+                console.log('Session set via code exchange');
+              } else {
+                console.log('No valid tokens or code found to set session');
               }
             } catch (authParseErr) {
               console.warn('Error processing deep link OAuth tokens:', authParseErr);
