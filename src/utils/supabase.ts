@@ -233,12 +233,14 @@ export async function signInWithGoogle(): Promise<{ error: string | null; url?: 
     }
 
     if (data.url && isNative) {
+      // Force system browser launch to ensure external auth
       try {
         await Browser.open({ url: data.url, windowName: '_system' });
       } catch (browserErr) {
-        console.warn('Browser.open failed, falling back to window.location', browserErr);
         window.location.href = data.url;
       }
+    } else if (data.url) {
+      window.location.href = data.url;
     }
 
     return { error: null, url: data.url };
