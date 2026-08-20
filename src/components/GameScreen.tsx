@@ -532,8 +532,8 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
             </div>
           </div>
 
-          {/* High-eCPM Rewarded Ad Action (Double XP Boost) */}
-          {!hasClaimedDoubleXP && (
+          {/* High-eCPM Rewarded Ad Action (Double XP Boost) - REMOVED */}
+          {false && !hasClaimedDoubleXP && (
             <div className="mb-4">
               <button
                 onClick={() => {

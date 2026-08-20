@@ -15,10 +15,10 @@
 
   body {
     font-family: var(--font-body);
-    background-color: #FF71CE;
-    background-image: radial-gradient(#05FFA1 2px, transparent 2px);
+    background-color: #2D0B23; /* Darker background color */
+    background-image: radial-gradient(#FF71CE 1px, transparent 1px);
     background-size: 32px 32px;
-    color: #000000;
+    color: #ffffff;
   }
 
   h1, h2, h3, h4, .font-cartoon {
