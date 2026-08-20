@@ -292,7 +292,7 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
     recordPartyGame(true);
     addXP(150);
 
-    // Free user logic: track cooldown, trigger ad, and then present Pro subscription modal
+    // Free user logic: trigger ad, and then present Pro subscription modal
     if (!profile.isPremium) {
       try {
         localStorage.setItem(PARTY_LAST_MATCH_KEY, String(Date.now()));
@@ -308,10 +308,10 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
       }
       setIsShowingAdLoading(false);
 
-      // Right after match completion (1.2s delay for seamless transition), show Pro subscription offer
+      // Right after match completion, show Pro subscription offer
       setTimeout(() => {
         setShowPaymentModal(true);
-      }, 1200);
+      }, 500);
     }
 
     try {

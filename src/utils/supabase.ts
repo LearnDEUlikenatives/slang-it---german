@@ -103,6 +103,10 @@ export const getSupabase = (): SupabaseClient | null => {
               } else {
                 console.log('No valid tokens or code found to set session');
               }
+              
+              // FORCE REDIRECT BACK TO APP UI
+              window.location.href = 'com.learngermanlikenatives.slangit://';
+              
             } catch (authParseErr) {
               console.warn('Error processing deep link OAuth tokens:', authParseErr);
             }

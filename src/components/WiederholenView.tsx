@@ -113,6 +113,17 @@ export const WiederholenView: React.FC = () => {
 
     // Trigger Native AdMob ONLY when 10 cumulative words are reached
     if (!profile.isPremium && crossedTenWordsMilestone) {
+      // Create a temporary black overlay to mask the white screen flash
+      const overlay = document.createElement('div');
+      overlay.style.position = 'fixed';
+      overlay.style.top = '0';
+      overlay.style.left = '0';
+      overlay.style.width = '100%';
+      overlay.style.height = '100%';
+      overlay.style.backgroundColor = 'black';
+      overlay.style.zIndex = '999999';
+      document.body.appendChild(overlay);
+
       setIsShowingAdLoading(true);
       try {
         await loadAndShowInterstitialAd();
@@ -120,6 +131,11 @@ export const WiederholenView: React.FC = () => {
         console.error('Error showing interstitial ad:', err);
       }
       setIsShowingAdLoading(false);
+      
+      // Remove overlay after ad is shown/closed
+      if (document.body.contains(overlay)) {
+        document.body.removeChild(overlay);
+      }
     }
 
     try {

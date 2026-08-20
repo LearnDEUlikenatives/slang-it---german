@@ -61,13 +61,24 @@ export async function initializeAdMob(isTesting = false): Promise<void> {
 }
 
 /**
- * Loads and shows the interstitial ad on demand.
+ * Loads and shows the interstitial ad on demand with a black loading overlay.
  */
 export async function loadAndShowInterstitialAd(isTesting = false): Promise<boolean> {
   if (!canShowAd()) return false;
   if (!isNativeAdMobAvailable()) return false;
 
   isInterstitialShowing = true;
+
+  // Create a temporary black overlay to mask the white screen flash
+  const overlay = document.createElement('div');
+  overlay.style.position = 'fixed';
+  overlay.style.top = '0';
+  overlay.style.left = '0';
+  overlay.style.width = '100%';
+  overlay.style.height = '100%';
+  overlay.style.backgroundColor = 'black';
+  overlay.style.zIndex = '999999';
+  document.body.appendChild(overlay);
 
   try {
     // 1. Prepare (Load) the ad
@@ -79,11 +90,20 @@ export async function loadAndShowInterstitialAd(isTesting = false): Promise<bool
     // 2. Show the ad
     await AdMob.showInterstitial();
     
+    // Remove overlay after ad is shown
+    document.body.removeChild(overlay);
+    
     isInterstitialShowing = false;
     lastAdTimestamp = Date.now();
     return true;
   } catch (err) {
     console.warn('AdMob loadAndShow failed:', err);
+    
+    // Remove overlay if ad fails
+    if (document.body.contains(overlay)) {
+      document.body.removeChild(overlay);
+    }
+    
     isInterstitialShowing = false;
     return false;
   }
