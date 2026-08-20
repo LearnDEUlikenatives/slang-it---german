@@ -59,6 +59,7 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
   const [revealedHints, setRevealedHints] = useState<number>(0);
   const [totalTimeLeft, setTotalTimeLeft] = useState(config.sessionTime);
   const [isGameOver, setIsGameOver] = useState(false);
+  const [showAdOverlay, setShowAdOverlay] = useState(false); // Add this
   const [hasClaimedDoubleXP, setHasClaimedDoubleXP] = useState(false);
   const [gameHistory, setGameHistory] = useState<Array<{ slang: SlangWord; chosen: string; isCorrect: boolean }>>([]);
   const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
@@ -292,22 +293,10 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
 
     // Trigger Native AdMob asynchronously (Zero delay / non-blocking)
     if (!profile.isPremium) {
-      // Create a temporary black overlay to mask the white screen flash
-      const overlay = document.createElement('div');
-      overlay.style.position = 'fixed';
-      overlay.style.top = '0';
-      overlay.style.left = '0';
-      overlay.style.width = '100%';
-      overlay.style.height = '100%';
-      overlay.style.backgroundColor = 'black';
-      overlay.style.zIndex = '999999';
-      document.body.appendChild(overlay);
+      setShowAdOverlay(true);
 
-      showGoogleInterstitialAd().then(() => {
-        // Remove overlay after ad is shown/closed
-        if (document.body.contains(overlay)) {
-            document.body.removeChild(overlay);
-        }
+      showGoogleInterstitialAd().finally(() => {
+        setShowAdOverlay(false);
       });
     }
 
@@ -742,6 +731,9 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
           earnedXP={config.difficulty === 'hard' ? 150 : config.difficulty === 'medium' ? 100 : 75}
           onNext={handleNextQuestion}
         />
+        {showAdOverlay && (
+          <div className="fixed inset-0 z-[9999] bg-black" />
+        )}
       </div>
     </div>
   );
