@@ -1,18 +1,40 @@
 /// <reference types="vite/client" />
 import { createClient, SupabaseClient, User, Session } from '@supabase/supabase-js';
 import { UserProfile } from '../types';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
+import { App as CapacitorApp } from '@capacitor/app';
 
-const env = (import.meta as any).env || {};
-const supabaseUrl = env.VITE_SUPABASE_URL as string | undefined;
-const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY as string | undefined;
+// Built-in Supabase Project Configuration (Public Anon Key)
+const DEFAULT_SUPABASE_URL = 'https://vemvetbhrnclcokqfvbk.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZlbXZldGJocm5jbGNva3FmdmJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MTA2MDIsImV4cCI6MjEwMjI4NjYwMn0.9249686HT7O0YQ3oIO9opT6PeY-FYUrgW43ToZmYD08';
+
+// Static string access with built-in fallback for Android APK and Web builds
+const getSupabaseUrl = (): string => {
+  const val =
+    (import.meta.env.VITE_SUPABASE_URL as string) ||
+    (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_URL ? process.env.VITE_SUPABASE_URL : '');
+  return val && val.trim() !== '' ? val : DEFAULT_SUPABASE_URL;
+};
+
+const getSupabaseAnonKey = (): string => {
+  const val =
+    (import.meta.env.VITE_SUPABASE_ANON_KEY as string) ||
+    (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_ANON_KEY ? process.env.VITE_SUPABASE_ANON_KEY : '');
+  return val && val.trim() !== '' ? val : DEFAULT_SUPABASE_ANON_KEY;
+};
 
 export const isSupabaseConfigured = (): boolean => {
+  const url = getSupabaseUrl();
+  const key = getSupabaseAnonKey();
+
   return Boolean(
-    supabaseUrl &&
-    supabaseAnonKey &&
-    supabaseUrl.trim() !== '' &&
-    supabaseAnonKey.trim() !== '' &&
-    supabaseUrl.startsWith('https://')
+    url &&
+    key &&
+    url.trim() !== '' &&
+    key.trim() !== '' &&
+    url.startsWith('https://')
   );
 };
 
@@ -22,14 +44,78 @@ export const getSupabase = (): SupabaseClient | null => {
   if (!isSupabaseConfigured()) {
     return null;
   }
-  if (!supabaseInstance && supabaseUrl && supabaseAnonKey) {
-    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+  if (!supabaseInstance) {
+    const url = getSupabaseUrl();
+    const key = getSupabaseAnonKey();
+    supabaseInstance = createClient(url, key, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
+        storage: typeof window !== 'undefined' ? window.localStorage : undefined,
       },
     });
+
+    // Native Capacitor deep link listener for OAuth redirect callbacks
+    if (typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
+      try {
+        CapacitorApp.addListener('appUrlOpen', async (event) => {
+          console.log('--- DEEP LINK RECEIVED ---');
+          console.log('URL:', event.url);
+          
+          if (event.url) {
+            try {
+              await Browser.close();
+            } catch {}
+
+            try {
+              // Parse tokens or auth code from URL hash or search params
+              let accessToken: string | null = null;
+              let refreshToken: string | null = null;
+              let code: string | null = null;
+
+              if (event.url.includes('#')) {
+                const hashPart = event.url.substring(event.url.indexOf('#') + 1);
+                const hashParams = new URLSearchParams(hashPart);
+                accessToken = hashParams.get('access_token');
+                refreshToken = hashParams.get('refresh_token');
+              }
+
+              if (!accessToken && event.url.includes('?')) {
+                const queryPart = event.url.substring(event.url.indexOf('?') + 1).split('#')[0];
+                const queryParams = new URLSearchParams(queryPart);
+                accessToken = queryParams.get('access_token');
+                refreshToken = queryParams.get('refresh_token');
+                code = queryParams.get('code');
+              }
+
+              console.log('Parsed tokens:', { accessToken: !!accessToken, refreshToken: !!refreshToken, code: !!code });
+
+              if (accessToken && refreshToken && supabaseInstance) {
+                await supabaseInstance.auth.setSession({
+                  access_token: accessToken,
+                  refresh_token: refreshToken,
+                });
+                console.log('Session set via tokens');
+              } else if (code && supabaseInstance) {
+                await supabaseInstance.auth.exchangeCodeForSession(code);
+                console.log('Session set via code exchange');
+              } else {
+                console.log('No valid tokens or code found to set session');
+              }
+              
+              // FORCE REDIRECT BACK TO APP UI
+              window.location.href = 'com.learngermanlikenatives.slangit://';
+              
+            } catch (authParseErr) {
+              console.warn('Error processing deep link OAuth tokens:', authParseErr);
+            }
+          }
+        });
+      } catch (e) {
+        console.warn('Capacitor deep link listener init warning:', e);
+      }
+    }
   }
   return supabaseInstance;
 };
@@ -119,16 +205,22 @@ export async function signInWithGoogle(): Promise<{ error: string | null; url?: 
   const client = getSupabase();
   if (!client) {
     return {
-      error: 'Supabase is not configured yet. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your environment.',
+      error: 'Supabase is not configured yet.',
     };
   }
 
   try {
-    const redirectTo = window.location.origin;
+    const isNative = typeof window !== 'undefined' && Capacitor.isNativePlatform();
+    // For native Android, deep link scheme is used
+    const redirectTo = isNative
+      ? 'com.learngermanlikenatives.slangit://auth/callback'
+      : window.location.origin;
+
     const { data, error } = await client.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo,
+        skipBrowserRedirect: isNative, // Prevents WebView from crashing into Google 403
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',
@@ -138,6 +230,15 @@ export async function signInWithGoogle(): Promise<{ error: string | null; url?: 
 
     if (error) {
       return { error: error.message };
+    }
+
+    if (data.url && isNative) {
+      try {
+        await Browser.open({ url: data.url, windowName: '_system' });
+      } catch (browserErr) {
+        console.warn('Browser.open failed, falling back to window.location', browserErr);
+        window.location.href = data.url;
+      }
     }
 
     return { error: null, url: data.url };

@@ -292,7 +292,23 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
 
     // Trigger Native AdMob asynchronously (Zero delay / non-blocking)
     if (!profile.isPremium) {
-      showGoogleInterstitialAd();
+      // Create a temporary black overlay to mask the white screen flash
+      const overlay = document.createElement('div');
+      overlay.style.position = 'fixed';
+      overlay.style.top = '0';
+      overlay.style.left = '0';
+      overlay.style.width = '100%';
+      overlay.style.height = '100%';
+      overlay.style.backgroundColor = 'black';
+      overlay.style.zIndex = '999999';
+      document.body.appendChild(overlay);
+
+      showGoogleInterstitialAd().then(() => {
+        // Remove overlay after ad is shown/closed
+        if (document.body.contains(overlay)) {
+            document.body.removeChild(overlay);
+        }
+      });
     }
 
     if (correctCount >= 3) {
