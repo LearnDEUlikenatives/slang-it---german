@@ -4,6 +4,7 @@ import { SLANG_DATABASE } from '../data/slangDatabase';
 import { CartoonAvatar, AVATAR_LIST } from './CartoonAvatar';
 import { AnswerFeedbackModal } from './AnswerFeedbackModal';
 import { loadAndShowInterstitialAd } from '../services/admobService';
+import { useComponentLifecycleLogger } from '../utils/useComponentLogger';
 import { sounds } from '../utils/audio';
 import { useGame } from '../context/GameContext';
 import { useTranslation } from '../utils/translations';
@@ -98,6 +99,14 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
   const [isGameOver, setIsGameOver] = useState(false);
+
+  useComponentLifecycleLogger('PartyMode', {
+    isLobby,
+    playerCount: players.length,
+    currentRound,
+    activePlayerTurnIndex,
+    isGameOver,
+  });
 
   const autoNextTimeoutRef = useRef<any>(null);
 

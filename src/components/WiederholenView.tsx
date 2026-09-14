@@ -3,6 +3,7 @@ import { SLANG_DATABASE } from '../data/slangDatabase';
 import { SlangWord } from '../types';
 import { speakGerman, sounds } from '../utils/audio';
 import { loadAndShowInterstitialAd } from '../services/admobService';
+import { useComponentLifecycleLogger } from '../utils/useComponentLogger';
 import { useGame } from '../context/GameContext';
 import { useTranslation, LANGUAGES } from '../utils/translations';
 import { getSlangMeaning } from '../utils/slangTranslations';
@@ -47,6 +48,14 @@ export const WiederholenView: React.FC = () => {
   const [knownCount, setKnownCount] = useState(0);
   const [repeatCount, setRepeatCount] = useState(0);
   const [isDeckFinished, setIsDeckFinished] = useState(false);
+
+  useComponentLifecycleLogger('WiederholenView', {
+    currentIndex,
+    deckLength: deck.length,
+    knownCount,
+    repeatCount,
+    isDeckFinished,
+  });
 
   const currentCard = deck[currentIndex];
 

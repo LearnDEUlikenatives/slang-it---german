@@ -5,6 +5,8 @@ import { ACHIEVEMENTS } from '../data/achievements';
 import { REGION_LABELS } from '../data/slangDatabase';
 import { sounds } from '../utils/audio';
 import { useTranslation, LANGUAGES, Language } from '../utils/translations';
+import { logger, LogCategory, LogEntry } from '../utils/logger';
+import { loadAndShowInterstitialAd, showGoogleRewardVideoAd, isNativeAdMobAvailable } from '../services/admobService';
 import {
   User,
   Trophy,
@@ -24,7 +26,11 @@ import {
   Globe,
   Cloud,
   LogOut,
-  LogIn
+  LogIn,
+  Bug,
+  Terminal,
+  Copy,
+  Trash
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -49,6 +55,64 @@ export const SettingsView: React.FC = () => {
   const [preferredRegion, setPreferredRegion] = useState(profile.preferredRegion);
   const [isSavedToast, setIsSavedToast] = useState(false);
   const [isSyncToast, setIsSyncToast] = useState(false);
+
+  // Diagnostic Logs State
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [logCategoryFilter, setLogCategoryFilter] = useState<LogCategory | 'ALL'>('ALL');
+  const [logs, setLogs] = useState<LogEntry[]>(() => logger.getLogs());
+  const [copiedLogsToast, setCopiedLogsToast] = useState(false);
+  const [isTestingAd, setIsTestingAd] = useState(false);
+  const [testAdResult, setTestAdResult] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    const unsubscribe = logger.subscribe(() => {
+      setLogs([...logger.getLogs()]);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleTestAd = async () => {
+    sounds.playPop();
+    setIsTestingAd(true);
+    setTestAdResult('Loading test interstitial...');
+    logger.lifecycle('Manual test ad triggered from Settings Diagnostics');
+
+    try {
+      const result = await loadAndShowInterstitialAd(true);
+      setTestAdResult(result ? '✅ Ad closed successfully' : '⚠️ Ad returned false or failed to show');
+    } catch (err: any) {
+      setTestAdResult(`❌ Error: ${err?.message || err}`);
+    } finally {
+      setIsTestingAd(false);
+    }
+  };
+
+  const handleCopyLogs = async () => {
+    sounds.playPop();
+    try {
+      const dump = logger.exportLogsAsText();
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(dump);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = dump;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopiedLogsToast(true);
+      setTimeout(() => setCopiedLogsToast(false), 2500);
+    } catch (err) {
+      console.warn('Failed to copy logs:', err);
+    }
+  };
+
+  const handleClearLogs = () => {
+    sounds.playPop();
+    logger.clearLogs();
+    setLogs([]);
+  };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -494,6 +558,156 @@ export const SettingsView: React.FC = () => {
           </button>
         </div>
       )}
+
+      {/* Developer Diagnostics & Lifecycle / AdMob Live Monitor */}
+      <div className="cartoon-card-lg bg-white rounded-3xl p-5 border-4 border-black shadow-[6px_6px_0px_#000000] space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b-2 border-black/10 pb-3">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-xl bg-[#01CDFE] border-2 border-black text-black shadow-[2px_2px_0px_#000000]">
+              <Terminal className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-black font-cartoon italic">
+                Diagnostics & AdMob Live Monitor
+              </h3>
+              <p className="text-[11px] font-bold text-black/70 font-sans">
+                Track navigation, render cycles, promise rejections & AdMob lifecycle
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowDiagnostics(!showDiagnostics)}
+            className="px-3.5 py-1.5 bg-[#FFFB96] hover:bg-[#FFFB96]/80 border-2 border-black rounded-xl font-cartoon font-black text-xs text-black shadow-[2px_2px_0px_#000000] self-start sm:self-auto"
+          >
+            {showDiagnostics ? '▲ Hide Console' : '▼ Open Live Console'}
+          </button>
+        </div>
+
+        {/* Live Status Indicators */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-sans">
+          <div className="bg-[#FFFB96]/50 border-2 border-black rounded-xl p-2.5 shadow-[2px_2px_0px_#000000]">
+            <span className="text-[10px] font-black uppercase text-black/70 font-cartoon block">AdMob Phase</span>
+            <span className="font-mono font-black text-black text-xs block truncate mt-0.5">
+              {logger.getAdMobPhase().phase}
+            </span>
+          </div>
+
+          <div className="bg-[#05FFA1]/40 border-2 border-black rounded-xl p-2.5 shadow-[2px_2px_0px_#000000]">
+            <span className="text-[10px] font-black uppercase text-black/70 font-cartoon block">Platform</span>
+            <span className="font-mono font-black text-black text-xs block truncate mt-0.5">
+              {isNativeAdMobAvailable() ? '📱 Native Android' : '🌐 Web Simulation'}
+            </span>
+          </div>
+
+          <div className="bg-[#FF71CE]/30 border-2 border-black rounded-xl p-2.5 shadow-[2px_2px_0px_#000000]">
+            <span className="text-[10px] font-black uppercase text-black/70 font-cartoon block">Total Logs</span>
+            <span className="font-mono font-black text-black text-xs block mt-0.5">
+              {logs.length} entries
+            </span>
+          </div>
+
+          <div className="bg-[#01CDFE]/30 border-2 border-black rounded-xl p-2.5 shadow-[2px_2px_0px_#000000]">
+            <span className="text-[10px] font-black uppercase text-black/70 font-cartoon block">Errors / Rejections</span>
+            <span className="font-mono font-black text-rose-600 text-xs block mt-0.5">
+              {logs.filter(l => l.level === 'error' || l.category === 'PROMISE').length}
+            </span>
+          </div>
+        </div>
+
+        {/* Action Controls */}
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <button
+            type="button"
+            onClick={handleTestAd}
+            disabled={isTestingAd}
+            className="px-3.5 py-2 bg-[#05FFA1] hover:bg-[#05FFA1]/80 disabled:opacity-50 border-2 border-black rounded-xl font-cartoon font-black text-xs text-black shadow-[2px_2px_0px_#000000] flex items-center gap-1.5"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>{isTestingAd ? 'Testing Ad...' : '🎯 Test Interstitial Ad'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleCopyLogs}
+            className="px-3.5 py-2 bg-white hover:bg-neutral-100 border-2 border-black rounded-xl font-cartoon font-black text-xs text-black shadow-[2px_2px_0px_#000000] flex items-center gap-1.5"
+          >
+            <Copy className="w-3.5 h-3.5" />
+            <span>{copiedLogsToast ? '✅ Copied to Clipboard!' : '📋 Copy All Logs'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleClearLogs}
+            className="px-3.5 py-2 bg-[#FF71CE]/40 hover:bg-[#FF71CE]/60 border-2 border-black rounded-xl font-cartoon font-black text-xs text-black shadow-[2px_2px_0px_#000000] flex items-center gap-1.5"
+          >
+            <Trash className="w-3.5 h-3.5" />
+            <span>Clear Logs</span>
+          </button>
+        </div>
+
+        {testAdResult && (
+          <div className="p-2.5 bg-black text-[#05FFA1] font-mono text-xs rounded-xl border border-black animate-fade-in">
+            {testAdResult}
+          </div>
+        )}
+
+        {/* Live Console Output */}
+        {showDiagnostics && (
+          <div className="space-y-2 pt-2 animate-fade-in">
+            {/* Category Filter Pills */}
+            <div className="flex flex-wrap gap-1.5 text-[11px] font-cartoon">
+              {(['ALL', 'NAV', 'ADMOB', 'PROMISE', 'RENDER', 'ERROR'] as const).map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setLogCategoryFilter(cat)}
+                  className={`px-2.5 py-1 rounded-lg border-2 border-black font-black transition-transform ${
+                    logCategoryFilter === cat
+                      ? 'bg-black text-[#FFFB96] shadow-[2px_2px_0px_#000000] scale-105'
+                      : 'bg-white text-black hover:bg-neutral-100'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            {/* Console Terminal View */}
+            <div className="bg-neutral-950 text-emerald-400 p-3 rounded-2xl font-mono text-[10px] sm:text-xs leading-relaxed max-h-80 overflow-y-auto border-3 border-black shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)] space-y-1">
+              {logs
+                .filter((l) => logCategoryFilter === 'ALL' || l.category === logCategoryFilter)
+                .slice(-80)
+                .map((log) => {
+                  let badgeColor = 'text-cyan-400';
+                  if (log.category === 'ADMOB') badgeColor = 'text-amber-400';
+                  if (log.category === 'PROMISE' || log.level === 'error') badgeColor = 'text-rose-400 font-bold';
+                  if (log.category === 'RENDER') badgeColor = 'text-purple-400';
+                  if (log.category === 'NAV') badgeColor = 'text-emerald-400';
+
+                  return (
+                    <div key={log.id} className="border-b border-neutral-800/80 pb-1">
+                      <span className="text-neutral-500">[{log.timeStr}]</span>{' '}
+                      <span className={badgeColor}>[{log.category}]</span>{' '}
+                      <span className="text-neutral-300">{log.message}</span>
+                      {log.details && (
+                        <div className="text-neutral-400 text-[10px] pl-4 whitespace-pre-wrap">
+                          {typeof log.details === 'object' ? JSON.stringify(log.details) : String(log.details)}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+              {logs.length === 0 && (
+                <div className="text-neutral-500 italic text-center py-4">
+                  No log entries recorded yet.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

@@ -16,6 +16,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { initializeAdMob } from './services/admobService';
 import { SlangWord } from './types';
 import { App as CapacitorApp } from '@capacitor/app';
+import { logger } from './utils/logger';
 
 export type TabType = 'home' | 'spielen' | 'party' | 'lernen' | 'wiederholen' | 'settings';
 
@@ -40,14 +41,31 @@ function MainAppContent() {
   const isAuthModalOpenRef = useRef(isAuthModalOpen);
   isAuthModalOpenRef.current = isAuthModalOpen;
 
+  const handleTabChange = (newTab: TabType, source: string = 'user_click') => {
+    const fromTab = activeTabRef.current;
+    if (fromTab !== newTab) {
+      logger.nav(`Tab transition: ${fromTab} ➔ ${newTab} (via ${source})`, {
+        from: fromTab,
+        to: newTab,
+        source,
+        practiceWordTerm: practiceWord?.term,
+        admobState: logger.getAdMobPhase(),
+      });
+      setPracticeWord(undefined);
+      setActiveTab(newTab);
+    }
+  };
+
   // Initialize AdMob smoothly on app launch
   useEffect(() => {
-    initializeAdMob().catch(err => console.error('AdMob init failed:', err));
+    logger.lifecycle('MainAppContent mounted. Triggering initializeAdMob...');
+    initializeAdMob().catch(err => {
+      logger.error('AdMob init failed in App mount effect', err);
+    });
   }, []);
 
   // Handle Android Hardware / Gesture Back Button
   useEffect(() => {
-    // Only bind in native mobile Capacitor environments
     const isNative = typeof window !== 'undefined' && Boolean((window as any).Capacitor?.isNativePlatform?.());
     if (!isNative) return;
 
@@ -56,18 +74,27 @@ function MainAppContent() {
 
     try {
       CapacitorApp.addListener('backButton', () => {
+        logger.nav(`Android Hardware Back Button pressed. Current tab: ${activeTabRef.current}`, {
+          isSidebarOpen: isSidebarOpenRef.current,
+          showPaymentModal: showPaymentModalRef.current,
+          isAuthModalOpen: isAuthModalOpenRef.current,
+        });
+
         // 1. Close sidebar if open
         if (isSidebarOpenRef.current) {
+          logger.nav('Back Button: Closing left sidebar drawer');
           setIsSidebarOpen(false);
           return;
         }
 
         // 2. Close modals if open
         if (showPaymentModalRef.current) {
+          logger.nav('Back Button: Closing payment modal');
           setShowPaymentModal(false);
           return;
         }
         if (isAuthModalOpenRef.current) {
+          logger.nav('Back Button: Closing auth modal');
           closeAuthModal();
           return;
         }
@@ -75,8 +102,10 @@ function MainAppContent() {
         // 3. If in 'spielen' tab:
         if (activeTabRef.current === 'spielen') {
           if (gameScreenBackRef.current && gameScreenBackRef.current()) {
-            return; // Handled: returned to Play config/start screen
+            logger.nav('Back Button: Handled by GameScreen internal back stack');
+            return;
           }
+          logger.nav('Back Button: Leaving spielen ➔ home');
           setPracticeWord(undefined);
           setActiveTab('home');
           return;
@@ -85,14 +114,17 @@ function MainAppContent() {
         // 4. If in 'party' tab:
         if (activeTabRef.current === 'party') {
           if (partyScreenBackRef.current && partyScreenBackRef.current()) {
-            return; // Handled: returned to Party lobby
+            logger.nav('Back Button: Handled by PartyMode internal back stack');
+            return;
           }
+          logger.nav('Back Button: Leaving party ➔ home');
           setActiveTab('home');
           return;
         }
 
         // 5. If in any other sub-tab (lernen, wiederholen, settings), return to home:
         if (activeTabRef.current !== 'home') {
+          logger.nav(`Back Button: Leaving ${activeTabRef.current} ➔ home`);
           setPracticeWord(undefined);
           setActiveTab('home');
           return;
@@ -100,14 +132,16 @@ function MainAppContent() {
 
         // 6. Already at home: exit app gracefully
         try {
+          logger.nav('Back Button at home root: Triggering CapacitorApp.exitApp()');
           CapacitorApp.exitApp();
         } catch (exitErr) {
-          console.warn('Could not exit app', exitErr);
+          logger.warn('Could not exit app via CapacitorApp.exitApp()', exitErr);
         }
       })
         .then((handle) => {
           if (isMounted) {
             listenerHandle = handle;
+            logger.lifecycle('Android backButton listener attached successfully');
           } else if (handle && typeof handle.remove === 'function') {
             try {
               handle.remove();
@@ -115,10 +149,10 @@ function MainAppContent() {
           }
         })
         .catch((err) => {
-          console.warn('Could not register backButton listener', err);
+          logger.warn('Could not register backButton listener', err);
         });
     } catch (err) {
-      console.warn('Error setting up backButton listener', err);
+      logger.warn('Error setting up backButton listener', err);
     }
 
     return () => {
@@ -127,13 +161,14 @@ function MainAppContent() {
         try {
           listenerHandle.remove();
         } catch (e) {
-          console.warn('Error removing backButton listener', e);
+          logger.warn('Error removing backButton listener', e);
         }
       }
     };
   }, [closeAuthModal, setShowPaymentModal]);
 
   const handlePracticeSlang = (slang: SlangWord) => {
+    logger.nav(`Direct practice initiated for word: "${slang.term}"`, { slangId: slang.id });
     setPracticeWord(slang);
     setActiveTab('spielen');
   };
@@ -143,33 +178,33 @@ function MainAppContent() {
       {/* Top Header with App Symbol that Panes in the Left Menu */}
       <Navbar
         activeTab={activeTab}
-        onSelectTab={(tab) => {
-          setPracticeWord(undefined);
-          setActiveTab(tab);
+        onSelectTab={(tab) => handleTabChange(tab, 'navbar')}
+        onOpenMenu={() => {
+          logger.nav('Opening Left Sidebar Drawer');
+          setIsSidebarOpen(true);
         }}
-        onOpenMenu={() => setIsSidebarOpen(true)}
       />
 
       {/* Left Sidebar Drawer - Panes in from the left and panes out upon selection */}
       <LeftSidebarDrawer
         isOpen={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
+        onClose={() => {
+          logger.nav('Closing Left Sidebar Drawer');
+          setIsSidebarOpen(false);
+        }}
         activeTab={activeTab}
         onSelectTab={(tab) => {
-          setPracticeWord(undefined);
-          setActiveTab(tab);
+          setIsSidebarOpen(false);
+          handleTabChange(tab, 'sidebar');
         }}
       />
 
       {/* Main Content Area */}
       <main className="flex-1 w-full max-w-7xl mx-auto p-2 sm:p-4">
-        <ErrorBoundary>
+        <ErrorBoundary componentName={`Tab:${activeTab}`}>
           {activeTab === 'home' && (
             <HomeDashboard
-              onNavigate={(tab) => {
-                setPracticeWord(undefined);
-                setActiveTab(tab);
-              }}
+              onNavigate={(tab) => handleTabChange(tab, 'home_dashboard_cta')}
               onPracticeSlang={handlePracticeSlang}
             />
           )}
@@ -177,7 +212,7 @@ function MainAppContent() {
           {activeTab === 'spielen' && (
             <GameScreen
               preselectedSlang={practiceWord}
-              onBackToMenu={() => setActiveTab('home')}
+              onBackToMenu={() => handleTabChange('home', 'game_back_to_menu')}
               registerBackHandler={(handler) => {
                 gameScreenBackRef.current = handler;
               }}
@@ -186,7 +221,7 @@ function MainAppContent() {
 
           {activeTab === 'party' && (
             <PartyMode
-              onBackToMenu={() => setActiveTab('home')}
+              onBackToMenu={() => handleTabChange('home', 'party_back_to_menu')}
               registerBackHandler={(handler) => {
                 partyScreenBackRef.current = handler;
               }}
@@ -208,10 +243,10 @@ function MainAppContent() {
       </main>
 
       {/* Bottom Mobile Navigation */}
-      <MobileNav activeTab={activeTab} onSelectTab={(tab) => {
-        setPracticeWord(undefined);
-        setActiveTab(tab);
-      }} />
+      <MobileNav
+        activeTab={activeTab}
+        onSelectTab={(tab) => handleTabChange(tab, 'mobile_bottom_nav')}
+      />
 
       {/* Modals */}
       <OnboardingModal />

@@ -4,6 +4,7 @@ import { SLANG_DATABASE, CATEGORY_LABELS, REGION_LABELS, RARITY_LABELS } from '.
 import { CartoonAvatar } from './CartoonAvatar';
 import { AnswerFeedbackModal } from './AnswerFeedbackModal';
 import { showGoogleInterstitialAd, showGoogleRewardVideoAd } from '../services/admobService';
+import { useComponentLifecycleLogger } from '../utils/useComponentLogger';
 import { sounds, speakGerman } from '../utils/audio';
 import { useGame } from '../context/GameContext';
 import { useTranslation, LANGUAGES } from '../utils/translations';
@@ -62,6 +63,14 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
   const [hasClaimedDoubleXP, setHasClaimedDoubleXP] = useState(false);
   const [gameHistory, setGameHistory] = useState<Array<{ slang: SlangWord; chosen: string; isCorrect: boolean }>>([]);
   const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
+
+  useComponentLifecycleLogger('GameScreen', {
+    isConfiguring,
+    currentIndex,
+    score,
+    strikes,
+    isGameOver,
+  });
 
   // Timer Refs
   const timerRef = useRef<any>(null);
