@@ -12,13 +12,11 @@ export const ADMOB_CONFIG = {
   APP_ID: 'ca-app-pub-4045089359333252~3927685995',
 
   // Primary Ad Unit ID for Play Game Over Interstitial
-  PLAY_INTERSTITIAL_AD_UNIT_ID: 'ca-app-pub-4045089359333252~3927685995',
+  PLAY_INTERSTITIAL_AD_UNIT_ID: 'ca-app-pub-4045089359333252/8011089596',
 
   // Alternate formatted candidates if standard format differs
   CANDIDATE_AD_UNITS: [
-    'ca-app-pub-4045089359333252~3927685995',
-    'ca-app-pub-4045089359333252/3927685995',
-    'ca-app-pub-4045089359333252/9100121622',
+    'ca-app-pub-4045089359333252/8011089596',
     'ca-app-pub-3940256099942544/1033173712', // Google Official Test Interstitial
   ],
 
