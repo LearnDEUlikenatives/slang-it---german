@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useGame } from '../context/GameContext';
 import { sounds } from '../utils/audio';
 import { useTranslation } from '../utils/translations';
-import { Crown, Check, X, Sparkles, Zap, Flame, ShieldCheck, Ban } from 'lucide-react';
+import { Check, X, Zap, Ban } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 export const PaymentGateModal: React.FC = () => {
@@ -31,9 +31,6 @@ export const PaymentGateModal: React.FC = () => {
     }, 2000);
   };
 
-  const minutesLeft = Math.floor(profile.trialSecondsRemaining / 60);
-  const secondsLeft = profile.trialSecondsRemaining % 60;
-
   return (
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-pop"
@@ -43,7 +40,7 @@ export const PaymentGateModal: React.FC = () => {
         }
       }}
     >
-      <div className="cartoon-card-lg bg-white rounded-3xl p-5 sm:p-7 max-w-lg w-full max-h-[92vh] overflow-y-auto relative text-center border-4 border-black shadow-[8px_8px_0px_#000000]">
+      <div className="cartoon-card-lg bg-[#FFFB96] rounded-3xl p-5 sm:p-7 max-w-lg w-full max-h-[92vh] overflow-y-auto relative text-center border-4 border-black shadow-[8px_8px_0px_#000000]">
         {/* Prominent Sticky Top Close Button */}
         <button
           onClick={() => {
@@ -58,7 +55,7 @@ export const PaymentGateModal: React.FC = () => {
 
         {isSuccess ? (
           <div className="py-8">
-            <div className="w-20 h-20 mx-auto rounded-3xl bg-[#FFFB96] border-4 border-black flex items-center justify-center text-4xl mb-4 shadow-[4px_4px_0px_#000000] animate-bounce">
+            <div className="w-20 h-20 mx-auto rounded-3xl bg-[#05FFA1] border-4 border-black flex items-center justify-center text-4xl mb-4 shadow-[4px_4px_0px_#000000] animate-bounce">
               👑
             </div>
             <h3 className="text-3xl font-black text-black font-cartoon italic">
@@ -71,7 +68,7 @@ export const PaymentGateModal: React.FC = () => {
         ) : (
           <div className="pt-2">
             {/* Header Crown */}
-            <div className="w-14 h-14 sm:w-16 sm:h-16 mx-auto rounded-3xl bg-[#FFFB96] border-3 border-black flex items-center justify-center text-3xl mb-2 shadow-[3px_3px_0px_#000000]">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 mx-auto rounded-3xl bg-white border-3 border-black flex items-center justify-center text-3xl mb-2 shadow-[3px_3px_0px_#000000]">
               👑
             </div>
 
@@ -90,7 +87,7 @@ export const PaymentGateModal: React.FC = () => {
             </p>
 
             {/* Perks List */}
-            <div className="my-4 text-left space-y-2 bg-[#FFFB96]/40 p-3.5 rounded-2xl border-3 border-black text-xs font-bold text-black shadow-[3px_3px_0px_#000000]">
+            <div className="my-4 text-left space-y-2 bg-white/90 p-3.5 rounded-2xl border-3 border-black text-xs font-bold text-black shadow-[3px_3px_0px_#000000]">
               <div className="flex items-center gap-2 text-emerald-950 font-black">
                 <Check className="w-4 h-4 text-emerald-600 stroke-[4]" />
                 <span>🚫 Zero Ads: No video/interstitial ads in Play, Party, Dictionary or Revision</span>
@@ -115,7 +112,7 @@ export const PaymentGateModal: React.FC = () => {
 
             {/* Single Monthly Pricing Box */}
             <div className="mb-4">
-              <div className="cartoon-card p-4 rounded-2xl bg-[#FFFB96] border-3 border-black shadow-[4px_4px_0px_#000000] flex items-center justify-between">
+              <div className="cartoon-card p-4 rounded-2xl bg-white border-3 border-black shadow-[4px_4px_0px_#000000] flex items-center justify-between">
                 <div className="text-left">
                   <span className="text-[10px] font-black uppercase text-black block font-cartoon">
                     Pro Monthly Subscription
@@ -153,10 +150,6 @@ export const PaymentGateModal: React.FC = () => {
             >
               ✕ Maybe Later (Continue Free with Ads)
             </button>
-
-            <p className="text-[10px] text-black/60 font-bold mt-2">
-              One-click instant activation • Lifetime ad-free guarantee
-            </p>
           </div>
         )}
       </div>

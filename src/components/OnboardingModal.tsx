@@ -39,7 +39,7 @@ export const OnboardingModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-pop">
-      <div className="cartoon-card-lg bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full relative overflow-hidden border-4 border-black shadow-[8px_8px_0px_#000000]">
+      <div className="cartoon-card-lg bg-[#FFFB96] rounded-3xl p-6 sm:p-8 max-w-lg w-full relative overflow-hidden border-4 border-black shadow-[8px_8px_0px_#000000]">
         {/* Step Indicator */}
         <div className="flex items-center justify-between gap-2 mb-6">
           <div className="flex items-center gap-1.5">

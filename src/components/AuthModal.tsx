@@ -121,7 +121,7 @@ export const AuthModal: React.FC = () => {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-sm animate-pop">
       <div
         id="auth-modal"
-        className="cartoon-card-lg bg-white rounded-3xl p-5 sm:p-7 max-w-md w-full border-4 border-black shadow-[8px_8px_0px_#000000] relative max-h-[90vh] overflow-y-auto"
+        className="cartoon-card-lg bg-[#FFFB96] rounded-3xl p-5 sm:p-7 max-w-md w-full border-4 border-black shadow-[8px_8px_0px_#000000] relative max-h-[90vh] overflow-y-auto"
       >
         {/* Close Button */}
         <button

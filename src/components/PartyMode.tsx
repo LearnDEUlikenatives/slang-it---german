@@ -299,16 +299,9 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
       } catch {}
 
       // Trigger Native AdMob safely
-      loadAndShowInterstitialAd()
-        .catch((err) => {
-          console.warn('AdMob interstitial notice:', err);
-        })
-        .finally(() => {
-          // Right after match completion, show Pro subscription offer
-          setTimeout(() => {
-            setShowPaymentModal(true);
-          }, 400);
-        });
+      loadAndShowInterstitialAd().catch((err) => {
+        console.warn('AdMob interstitial notice:', err);
+      });
     }
 
     try {
