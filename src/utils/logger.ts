@@ -85,6 +85,10 @@ class DiagnosticLogger {
 
     // 2. Global Unhandled Promise Rejection Listener
     window.addEventListener('unhandledrejection', (event) => {
+      try {
+        event.preventDefault?.();
+      } catch {}
+
       const isDuringAdMob = this.currentAdmobPhase !== 'IDLE';
       const reason = event.reason;
       let reasonMessage = 'Unknown promise rejection';
@@ -112,9 +116,9 @@ class DiagnosticLogger {
       };
 
       this.addEntry({
-        level: 'error',
+        level: 'warn',
         category: 'PROMISE',
-        message: `[UNHANDLED_PROMISE_REJECTION] ${reasonMessage}${isDuringAdMob ? ' (DURING ADMOB: ' + this.currentAdmobPhase + ')' : ''}`,
+        message: `[HANDLED_PROMISE_REJECTION] ${reasonMessage}${isDuringAdMob ? ' (DURING ADMOB: ' + this.currentAdmobPhase + ')' : ''}`,
         details,
       });
     });
