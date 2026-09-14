@@ -25,7 +25,7 @@ import {
   Sliders,
   Award
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { fireConfetti } from '../utils/confetti';
 
 interface Props {
   onBackToMenu?: () => void;
@@ -242,13 +242,11 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
 
       // Confetti on streaks
       if (combo >= 2) {
-        try {
-          confetti({
-            particleCount: 40,
-            spread: 55,
-            origin: { y: 0.6 },
-          });
-        } catch {}
+        fireConfetti({
+          particleCount: 40,
+          spread: 55,
+          origin: { y: 0.6 },
+        });
       }
 
       // Auto-advance straight after 1 second (1000ms) to next scenario on correct answer
@@ -308,13 +306,11 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
 
     if (correctCount >= 3) {
       sounds.playLevelUp();
-      try {
-        confetti({
-          particleCount: 100,
-          spread: 80,
-          origin: { y: 0.4 },
-        });
-      } catch {}
+      fireConfetti({
+        particleCount: 100,
+        spread: 80,
+        origin: { y: 0.4 },
+      });
     }
   };
 
@@ -538,9 +534,9 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
                     addXP(xpEarned);
                     setHasClaimedDoubleXP(true);
                     sounds.playLevelUp();
-                    try {
-                      confetti({ particleCount: 120, spread: 80 });
-                    } catch {}
+                    fireConfetti({ particleCount: 120, spread: 80 });
+                  }).catch((rewardErr) => {
+                    console.warn('Reward video error:', rewardErr);
                   });
                 }}
                 className="cartoon-btn w-full py-3 rounded-2xl bg-gradient-to-r from-[#FF71CE] via-[#FFFB96] to-[#05FFA1] text-black font-black text-xs sm:text-sm font-cartoon flex items-center justify-center gap-2 border-3 border-black shadow-[4px_4px_0px_#000000] hover:scale-[1.02] active:scale-[0.98] transition-transform animate-pulse"

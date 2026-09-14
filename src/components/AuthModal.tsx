@@ -6,7 +6,7 @@ import { isSupabaseConfigured, signInWithEmail, signUpWithEmail, signInWithGoogl
 import { Capacitor } from '@capacitor/core';
 import AppLogoImg from '../assets/images/german_slang_logo_1786812856007.jpg';
 import { X, Mail, Lock, User, Sparkles, CheckCircle2, AlertCircle, Cloud, ArrowRight } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { fireConfetti } from '../utils/confetti';
 
 export const AuthModal: React.FC = () => {
   const { isAuthModalOpen, closeAuthModal, profile, user, logoutUser, refreshCloudSync, cloudSyncStatus } = useGame();
@@ -82,38 +82,40 @@ export const AuthModal: React.FC = () => {
       return;
     }
 
-    if (isSignUp) {
-      const res = await signUpWithEmail(email, password, displayName || profile.name);
-      setLoading(false);
-      if (res.error) {
-        setErrorMessage(res.error);
-        sounds.playWrong();
+    try {
+      if (isSignUp) {
+        const res = await signUpWithEmail(email, password, displayName || profile.name);
+        setLoading(false);
+        if (res.error) {
+          setErrorMessage(res.error);
+          sounds.playWrong();
+        } else {
+          sounds.playLevelUp();
+          setSuccessMessage('Please confirm your email address before signing in.');
+          fireConfetti({ particleCount: 70, spread: 60, origin: { y: 0.5 } });
+          setTimeout(() => {
+            handleClose();
+          }, 3000);
+        }
       } else {
-        sounds.playLevelUp();
-        setSuccessMessage('Please confirm your email address before signing in.');
-        try {
-          confetti({ particleCount: 70, spread: 60, origin: { y: 0.5 } });
-        } catch {}
-        setTimeout(() => {
-          handleClose();
-        }, 3000);
+        const res = await signInWithEmail(email, password);
+        setLoading(false);
+        if (res.error) {
+          setErrorMessage(res.error);
+          sounds.playWrong();
+        } else {
+          sounds.playCorrect();
+          setSuccessMessage('Welcome back! Syncing your progress...');
+          fireConfetti({ particleCount: 50, spread: 50, origin: { y: 0.5 } });
+          setTimeout(() => {
+            handleClose();
+          }, 1000);
+        }
       }
-    } else {
-      const res = await signInWithEmail(email, password);
+    } catch (err: any) {
       setLoading(false);
-      if (res.error) {
-        setErrorMessage(res.error);
-        sounds.playWrong();
-      } else {
-        sounds.playCorrect();
-        setSuccessMessage('Welcome back! Syncing your progress...');
-        try {
-          confetti({ particleCount: 50, spread: 50, origin: { y: 0.5 } });
-        } catch {}
-        setTimeout(() => {
-          handleClose();
-        }, 1000);
-      }
+      setErrorMessage(err?.message || 'Authentication error occurred.');
+      sounds.playWrong();
     }
   };
 

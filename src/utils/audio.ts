@@ -248,7 +248,7 @@ function loadVoices(): Promise<SpeechSynthesisVoice[]> {
 
 // Pre-trigger voice load in browser
 if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-  loadVoices();
+  loadVoices().catch(() => {});
 }
 
 export function speakGerman(text: string, onEnd?: () => void) {

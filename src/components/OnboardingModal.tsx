@@ -6,7 +6,7 @@ import { sounds } from '../utils/audio';
 import { useTranslation, LANGUAGES, Language } from '../utils/translations';
 import AppLogoImg from '../assets/images/german_slang_logo_1786812856007.jpg';
 import { Sparkles, ArrowRight, Check, Globe } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { fireConfetti } from '../utils/confetti';
 
 export const OnboardingModal: React.FC = () => {
   const { isFirstVisit, completeOnboarding, profile, setSystemLanguage } = useGame();
@@ -27,13 +27,11 @@ export const OnboardingModal: React.FC = () => {
       setStep(step + 1);
     } else {
       completeOnboarding(name, avatarId, germanLevel, preferredRegion, dailyGoal);
-      try {
-        confetti({
-          particleCount: 100,
-          spread: 80,
-          origin: { y: 0.5 },
-        });
-      } catch {}
+      fireConfetti({
+        particleCount: 100,
+        spread: 80,
+        origin: { y: 0.5 },
+      });
     }
   };
 

@@ -3,7 +3,7 @@ import { useGame } from '../context/GameContext';
 import { sounds } from '../utils/audio';
 import { useTranslation } from '../utils/translations';
 import { Check, X, Zap, Ban } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { fireConfetti } from '../utils/confetti';
 
 export const PaymentGateModal: React.FC = () => {
   const { profile, updateProfile, showPaymentModal, setShowPaymentModal } = useGame();
@@ -17,13 +17,11 @@ export const PaymentGateModal: React.FC = () => {
     updateProfile({ isPremium: true });
     setIsSuccess(true);
 
-    try {
-      confetti({
-        particleCount: 120,
-        spread: 90,
-        origin: { y: 0.5 },
-      });
-    } catch {}
+    fireConfetti({
+      particleCount: 120,
+      spread: 90,
+      origin: { y: 0.5 },
+    });
 
     setTimeout(() => {
       setIsSuccess(false);

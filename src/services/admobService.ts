@@ -71,6 +71,8 @@ export async function initializeAdMob(): Promise<void> {
       logger.admob('Native AdMob platform detected. Initializing with test devices support...');
       await AdMob.initialize({
         initializeForTesting: true,
+      }).catch((initErr: any) => {
+        logger.admob(`AdMob.initialize plugin call rejected: ${initErr?.message || initErr}`, initErr, 'warn');
       });
 
       isInitialized = true;
@@ -107,90 +109,119 @@ export async function loadAndShowInterstitialAd(forceTesting = true): Promise<bo
   logger.setAdMobPhase('PREPARING_INTERSTITIAL');
   isInterstitialShowing = true;
 
-  return new Promise<boolean>(async (resolve) => {
+  return new Promise<boolean>((resolve) => {
     let resolved = false;
     let dismissedListener: any = null;
     let failedListener: any = null;
+    let safetyTimer: any = null;
 
     const cleanup = (reason: string) => {
       if (resolved) return;
       resolved = true;
+      if (safetyTimer) {
+        clearTimeout(safetyTimer);
+        safetyTimer = null;
+      }
       isInterstitialShowing = false;
       lastAdTimestamp = Date.now();
       logger.setAdMobPhase('IDLE', { cleanupReason: reason });
       logger.admob(`Interstitial cleanup completed: ${reason}`);
 
       if (dismissedListener && typeof dismissedListener.remove === 'function') {
-        try { dismissedListener.remove(); } catch (e) {
+        try {
+          dismissedListener.remove();
+        } catch (e) {
           logger.admob('Error removing dismissedListener', e, 'warn');
         }
       }
       if (failedListener && typeof failedListener.remove === 'function') {
-        try { failedListener.remove(); } catch (e) {
+        try {
+          failedListener.remove();
+        } catch (e) {
           logger.admob('Error removing failedListener', e, 'warn');
         }
       }
     };
 
     // Safety timeout: Never hang the app if ad fails to notify
-    const safetyTimer = setTimeout(() => {
+    safetyTimer = setTimeout(() => {
       logger.admob('⚠️ Interstitial safety timeout triggered after 10000ms', null, 'warn');
       cleanup('SAFETY_TIMEOUT_EXPIRED');
       resolve(false);
     }, 10000);
 
-    try {
-      logger.admob('Registering InterstitialAdPluginEvents listeners...');
-      
-      dismissedListener = await AdMob.addListener(
-        InterstitialAdPluginEvents.Dismissed,
-        () => {
-          logger.admob('🎯 InterstitialAdPluginEvents.Dismissed received.');
-          clearTimeout(safetyTimer);
-          cleanup('DISMISSED_EVENT_RECEIVED');
-          resolve(true);
-        }
-      );
-
-      failedListener = await AdMob.addListener(
-        InterstitialAdPluginEvents.FailedToShow,
-        (err) => {
-          logger.admob(`❌ InterstitialAdPluginEvents.FailedToShow received: ${JSON.stringify(err)}`, err, 'error');
-          clearTimeout(safetyTimer);
-          cleanup('FAILED_TO_SHOW_EVENT');
-          resolve(false);
-        }
-      );
-
-      // 1. Prepare Interstitial
-      logger.setAdMobPhase('PREPARING_CALL', { adUnit: ADMOB_CONFIG.INTERSTITIAL_AD_UNIT_ID });
+    // Safely execute async operations without unhandled promise rejection leaks
+    (async () => {
       try {
-        await AdMob.prepareInterstitial({
-          adId: ADMOB_CONFIG.INTERSTITIAL_AD_UNIT_ID,
-          isTesting: forceTesting,
-        });
-        logger.admob('Primary ad unit prepared successfully.');
-      } catch (prepareErr: any) {
-        logger.admob(`Primary ad unit prepare failed (${prepareErr?.message || prepareErr}). Trying official Google test unit...`, null, 'warn');
-        await AdMob.prepareInterstitial({
-          adId: ADMOB_CONFIG.TEST_INTERSTITIAL_AD_UNIT_ID,
-          isTesting: true,
-        });
-        logger.admob('Fallback test ad unit prepared successfully.');
-      }
+        logger.admob('Registering InterstitialAdPluginEvents listeners...');
 
-      // 2. Show Interstitial
-      logger.setAdMobPhase('SHOWING_INTERSTITIAL');
-      logger.admob('Calling AdMob.showInterstitial()...');
-      await AdMob.showInterstitial();
-      logger.admob('AdMob.showInterstitial() promise resolved.');
-    } catch (err: any) {
-      logger.setAdMobPhase('ERROR', { error: err?.message || err });
-      logger.admob(`❌ AdMob loadAndShow caught unhandled error: ${err?.message || err}`, err, 'error');
-      clearTimeout(safetyTimer);
-      cleanup('ERROR_CAUGHT_DURING_SHOW');
+        dismissedListener = await AdMob.addListener(
+          InterstitialAdPluginEvents.Dismissed,
+          () => {
+            logger.admob('🎯 InterstitialAdPluginEvents.Dismissed received.');
+            cleanup('DISMISSED_EVENT_RECEIVED');
+            resolve(true);
+          }
+        ).catch((listenerErr: any) => {
+          logger.admob('Failed to add Dismissed listener', listenerErr, 'warn');
+          return null;
+        });
+
+        failedListener = await AdMob.addListener(
+          InterstitialAdPluginEvents.FailedToShow,
+          (err) => {
+            logger.admob(`❌ InterstitialAdPluginEvents.FailedToShow received: ${JSON.stringify(err)}`, err, 'error');
+            cleanup('FAILED_TO_SHOW_EVENT');
+            resolve(false);
+          }
+        ).catch((listenerErr: any) => {
+          logger.admob('Failed to add FailedToShow listener', listenerErr, 'warn');
+          return null;
+        });
+
+        // 1. Prepare Interstitial
+        logger.setAdMobPhase('PREPARING_CALL', { adUnit: ADMOB_CONFIG.INTERSTITIAL_AD_UNIT_ID });
+        try {
+          await AdMob.prepareInterstitial({
+            adId: ADMOB_CONFIG.INTERSTITIAL_AD_UNIT_ID,
+            isTesting: forceTesting,
+          });
+          logger.admob('Primary ad unit prepared successfully.');
+        } catch (prepareErr: any) {
+          logger.admob(`Primary ad unit prepare failed (${prepareErr?.message || prepareErr}). Trying official Google test unit...`, null, 'warn');
+          try {
+            await AdMob.prepareInterstitial({
+              adId: ADMOB_CONFIG.TEST_INTERSTITIAL_AD_UNIT_ID,
+              isTesting: true,
+            });
+            logger.admob('Fallback test ad unit prepared successfully.');
+          } catch (fallbackErr: any) {
+            logger.admob(`Fallback test unit prepare failed: ${fallbackErr?.message || fallbackErr}`, fallbackErr, 'warn');
+            cleanup('PREPARE_FAILED');
+            resolve(false);
+            return;
+          }
+        }
+
+        // 2. Show Interstitial
+        logger.setAdMobPhase('SHOWING_INTERSTITIAL');
+        logger.admob('Calling AdMob.showInterstitial()...');
+        await AdMob.showInterstitial().catch((showErr: any) => {
+          logger.admob(`AdMob.showInterstitial rejected: ${showErr?.message || showErr}`, showErr, 'warn');
+          throw showErr;
+        });
+        logger.admob('AdMob.showInterstitial() promise resolved.');
+      } catch (err: any) {
+        logger.setAdMobPhase('ERROR', { error: err?.message || err });
+        logger.admob(`❌ AdMob loadAndShow caught error: ${err?.message || err}`, err, 'warn');
+        cleanup('ERROR_CAUGHT_DURING_SHOW');
+        resolve(false);
+      }
+    })().catch((asyncExecErr: any) => {
+      logger.admob(`❌ AdMob async wrapper caught error: ${asyncExecErr?.message || asyncExecErr}`, asyncExecErr, 'warn');
+      cleanup('UNHANDLED_ASYNC_WRAPPER');
       resolve(false);
-    }
+    });
   });
 }
 
@@ -199,7 +230,12 @@ export async function loadAndShowInterstitialAd(forceTesting = true): Promise<bo
  */
 export async function showGoogleInterstitialAd(isTesting = true): Promise<boolean> {
   logger.admob('showGoogleInterstitialAd wrapper invoked');
-  return loadAndShowInterstitialAd(isTesting);
+  try {
+    return await loadAndShowInterstitialAd(isTesting);
+  } catch (e: any) {
+    logger.admob(`showGoogleInterstitialAd caught error: ${e?.message || e}`, e, 'warn');
+    return false;
+  }
 }
 
 /**
@@ -232,35 +268,49 @@ export async function showGoogleRewardVideoAd(
           logger.admob('Rewarded ad unit prepared.');
         } catch {
           logger.admob('Rewarded primary failed. Using fallback test unit.', null, 'warn');
-          await AdMob.prepareRewardVideoAd({
-            adId: ADMOB_CONFIG.TEST_REWARDED_AD_UNIT_ID,
-            isTesting: true,
-          });
+          try {
+            await AdMob.prepareRewardVideoAd({
+              adId: ADMOB_CONFIG.TEST_REWARDED_AD_UNIT_ID,
+              isTesting: true,
+            });
+          } catch (fallbackRewardErr: any) {
+            logger.admob('Rewarded fallback prepare failed.', fallbackRewardErr, 'warn');
+          }
         }
       }
 
       let rewardGiven = false;
-      const rewardListener = await AdMob.addListener(RewardAdPluginEvents.Rewarded, () => {
-        logger.admob('🎉 RewardAdPluginEvents.Rewarded triggered! Granting reward.');
-        rewardGiven = true;
-        onRewarded();
-      });
+      let rewardListener: any = null;
+
+      try {
+        rewardListener = await AdMob.addListener(RewardAdPluginEvents.Rewarded, () => {
+          logger.admob('🎉 RewardAdPluginEvents.Rewarded triggered! Granting reward.');
+          rewardGiven = true;
+          onRewarded();
+        });
+      } catch (listenerErr) {
+        logger.admob('Error adding rewarded listener', listenerErr, 'warn');
+      }
 
       logger.setAdMobPhase('SHOWING_REWARD');
-      await AdMob.showRewardVideoAd();
+      await AdMob.showRewardVideoAd().catch((showErr: any) => {
+        logger.admob(`AdMob.showRewardVideoAd rejected: ${showErr?.message || showErr}`, showErr, 'warn');
+      });
       logger.admob('Reward video completed / closed.');
       isRewardLoaded = false;
       isRewardShowing = false;
       logger.setAdMobPhase('IDLE');
 
-      try {
-        rewardListener.remove();
-      } catch {}
+      if (rewardListener && typeof rewardListener.remove === 'function') {
+        try {
+          rewardListener.remove();
+        } catch {}
+      }
 
       return rewardGiven;
     } catch (err: any) {
       logger.setAdMobPhase('IDLE', { error: err?.message || err });
-      logger.admob(`❌ Rewarded ad failed to show: ${err?.message || err}`, err, 'error');
+      logger.admob(`❌ Rewarded ad failed to show: ${err?.message || err}`, err, 'warn');
       isRewardShowing = false;
       isRewardLoaded = false;
       return false;

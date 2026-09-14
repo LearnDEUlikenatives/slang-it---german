@@ -95,10 +95,10 @@ export const getSupabase = (): SupabaseClient | null => {
                 await supabaseInstance.auth.setSession({
                   access_token: accessToken,
                   refresh_token: refreshToken,
-                });
+                }).catch(err => console.warn('setSession error:', err));
                 console.log('Session set via tokens');
               } else if (code && supabaseInstance) {
-                await supabaseInstance.auth.exchangeCodeForSession(code);
+                await supabaseInstance.auth.exchangeCodeForSession(code).catch(err => console.warn('exchangeCode error:', err));
                 console.log('Session set via code exchange');
               } else {
                 console.log('No valid tokens or code found to set session');
@@ -111,6 +111,8 @@ export const getSupabase = (): SupabaseClient | null => {
               console.warn('Error processing deep link OAuth tokens:', authParseErr);
             }
           }
+        }).catch((listenerErr: any) => {
+          console.warn('CapacitorApp.addListener appUrlOpen caught error:', listenerErr);
         });
       } catch (e) {
         console.warn('Capacitor deep link listener init warning:', e);

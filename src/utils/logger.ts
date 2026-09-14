@@ -4,7 +4,7 @@
  * unhandled promise rejections, and AdMob lifecycle events.
  */
 
-export type LogCategory = 'NAV' | 'ADMOB' | 'RENDER' | 'ERROR' | 'PROMISE' | 'LIFECYCLE' | 'STORAGE';
+export type LogCategory = 'NAV' | 'ADMOB' | 'RENDER' | 'ERROR' | 'PROMISE' | 'LIFECYCLE' | 'STORAGE' | 'GENERAL';
 export type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
 export interface LogEntry {

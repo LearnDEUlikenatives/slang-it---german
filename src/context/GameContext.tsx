@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import { UserProfile, Achievement } from '../types';
 import { ACHIEVEMENTS } from '../data/achievements';
 import { sounds } from '../utils/audio';
-import confetti from 'canvas-confetti';
+import { fireConfetti } from '../utils/confetti';
 import { User } from '@supabase/supabase-js';
 import {
   getSupabase,
@@ -220,8 +220,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setCloudSyncStatus('syncing');
       syncTimeoutRef.current = setTimeout(async () => {
-        const success = await syncProfileToCloud(currentProfile, currentUser.id);
-        setCloudSyncStatus(success ? 'synced' : 'guest');
+        try {
+          const success = await syncProfileToCloud(currentProfile, currentUser.id);
+          setCloudSyncStatus(success ? 'synced' : 'guest');
+        } catch (syncErr) {
+          console.warn('debouncedCloudSync error:', syncErr);
+          setCloudSyncStatus('guest');
+        }
       }, 1500);
     },
     []
@@ -308,13 +313,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           setNewUnlockedAchievement(ach);
           sounds.playLevelUp();
-          try {
-            confetti({
-              particleCount: 80,
-              spread: 70,
-              origin: { y: 0.6 },
-            });
-          } catch {}
+          fireConfetti({
+            particleCount: 80,
+            spread: 70,
+            origin: { y: 0.6 },
+          });
           break;
         }
       }
@@ -342,13 +345,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (leveledUp) {
         sounds.playLevelUp();
-        try {
-          confetti({
-            particleCount: 100,
-            spread: 80,
-            origin: { y: 0.5 },
-          });
-        } catch {}
+        fireConfetti({
+          particleCount: 100,
+          spread: 80,
+          origin: { y: 0.5 },
+        });
       }
 
       const updated = {
@@ -481,7 +482,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logoutUser = async () => {
     sounds.playPop();
-    await supabaseSignOut();
+    try {
+      await supabaseSignOut();
+    } catch (e) {
+      console.warn('logout error:', e);
+    }
     setUser(null);
     setCloudSyncStatus('guest');
   };
@@ -489,8 +494,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshCloudSync = async () => {
     if (!user) return;
     setCloudSyncStatus('syncing');
-    const success = await syncProfileToCloud(profile, user.id);
-    setCloudSyncStatus(success ? 'synced' : 'guest');
+    try {
+      const success = await syncProfileToCloud(profile, user.id);
+      setCloudSyncStatus(success ? 'synced' : 'guest');
+    } catch (e) {
+      console.warn('refreshCloudSync error:', e);
+      setCloudSyncStatus('guest');
+    }
   };
 
   return (

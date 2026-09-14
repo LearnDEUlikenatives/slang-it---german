@@ -14,7 +14,7 @@ import {
   XCircle,
   Eye,
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { fireConfetti } from '../utils/confetti';
 
 const REVISION_WORDS_COUNT_KEY = 'slangit_revised_words_count';
 
@@ -126,13 +126,11 @@ export const WiederholenView: React.FC = () => {
       });
     }
 
-    try {
-      confetti({
-        particleCount: 100,
-        spread: 80,
-        origin: { y: 0.5 },
-      });
-    } catch {}
+    fireConfetti({
+      particleCount: 100,
+      spread: 80,
+      origin: { y: 0.5 },
+    });
   };
 
   const restartDeck = () => {

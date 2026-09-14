@@ -9,7 +9,7 @@ import { sounds } from '../utils/audio';
 import { useGame } from '../context/GameContext';
 import { useTranslation } from '../utils/translations';
 import { Play, RotateCcw, Plus, Trash2, Crown, Sparkles, Lock, Clock, Zap } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { fireConfetti } from '../utils/confetti';
 
 const PARTY_COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 Hours Cooldown for Free Users
 const PARTY_LAST_MATCH_KEY = 'slangit_party_last_match_time';
@@ -259,13 +259,11 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
         })
       );
 
-      try {
-        confetti({
-          particleCount: 60,
-          spread: 70,
-          origin: { y: 0.6 },
-        });
-      } catch {}
+      fireConfetti({
+        particleCount: 60,
+        spread: 70,
+        origin: { y: 0.6 },
+      });
 
       // Auto-advance after 1.2s on correct answer pop-up
       if (autoNextTimeoutRef.current) clearTimeout(autoNextTimeoutRef.current);
@@ -313,13 +311,11 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
       });
     }
 
-    try {
-      confetti({
-        particleCount: 150,
-        spread: 100,
-        origin: { y: 0.4 },
-      });
-    } catch {}
+    fireConfetti({
+      particleCount: 150,
+      spread: 100,
+      origin: { y: 0.4 },
+    });
   };
 
   const currentQ = questions[currentRound];

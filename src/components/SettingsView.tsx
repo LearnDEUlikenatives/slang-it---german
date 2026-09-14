@@ -32,7 +32,6 @@ import {
   Copy,
   Trash
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 
 export const SettingsView: React.FC = () => {
   const {
@@ -91,9 +90,16 @@ export const SettingsView: React.FC = () => {
     sounds.playPop();
     try {
       const dump = logger.exportLogsAsText();
+      let copied = false;
       if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(dump);
-      } else {
+        try {
+          await navigator.clipboard.writeText(dump);
+          copied = true;
+        } catch {
+          copied = false;
+        }
+      }
+      if (!copied) {
         const textarea = document.createElement('textarea');
         textarea.value = dump;
         document.body.appendChild(textarea);
@@ -266,11 +272,16 @@ export const SettingsView: React.FC = () => {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={async () => {
+                onClick={() => {
                   sounds.playPop();
-                  await refreshCloudSync();
-                  setIsSyncToast(true);
-                  setTimeout(() => setIsSyncToast(false), 2500);
+                  refreshCloudSync()
+                    .then(() => {
+                      setIsSyncToast(true);
+                      setTimeout(() => setIsSyncToast(false), 2500);
+                    })
+                    .catch((err) => {
+                      console.warn('Sync failed:', err);
+                    });
                 }}
                 className="cartoon-btn-sm px-3.5 py-2 rounded-xl bg-[#01CDFE] hover:bg-[#01CDFE]/80 text-black font-cartoon font-black text-xs flex items-center gap-1.5 border-2 border-black shadow-[2px_2px_0px_#000000]"
               >
@@ -280,9 +291,11 @@ export const SettingsView: React.FC = () => {
 
               <button
                 type="button"
-                onClick={async () => {
+                onClick={() => {
                   sounds.playPop();
-                  await logoutUser();
+                  logoutUser().catch((err) => {
+                    console.warn('Logout failed:', err);
+                  });
                 }}
                 className="cartoon-btn-sm px-3.5 py-2 rounded-xl bg-[#FF71CE] hover:bg-[#FF71CE]/80 text-black font-cartoon font-black text-xs flex items-center gap-1.5 border-2 border-black shadow-[2px_2px_0px_#000000]"
               >

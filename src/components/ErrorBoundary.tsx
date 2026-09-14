@@ -84,9 +84,16 @@ export class ErrorBoundary extends React.Component<Props, State> {
   private handleCopyLogs = async () => {
     try {
       const dump = logger.exportLogsAsText();
+      let copied = false;
       if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(dump);
-      } else {
+        try {
+          await navigator.clipboard.writeText(dump);
+          copied = true;
+        } catch {
+          copied = false;
+        }
+      }
+      if (!copied) {
         const textarea = document.createElement('textarea');
         textarea.value = dump;
         document.body.appendChild(textarea);
