@@ -73,11 +73,17 @@ export const SettingsView: React.FC = () => {
   const handleTestAd = async () => {
     sounds.playPop();
     setIsTestingAd(true);
-    setTestAdResult('ℹ️ Ads are temporarily disabled for clean testing. No ad shown.');
-    logger.lifecycle('Manual test ad triggered (Ads disabled for testing)');
-    setTimeout(() => {
+    setTestAdResult('Loading test interstitial for Play page...');
+    logger.lifecycle('Manual test ad triggered from Settings Diagnostics');
+
+    try {
+      const result = await loadAndShowInterstitialAd(true);
+      setTestAdResult(result ? '✅ Interstitial ad completed successfully' : '⚠️ Interstitial notice / closed');
+    } catch (err: any) {
+      setTestAdResult(`Notice: ${err?.message || err}`);
+    } finally {
       setIsTestingAd(false);
-    }, 400);
+    }
   };
 
   const handleCopyLogs = async () => {
