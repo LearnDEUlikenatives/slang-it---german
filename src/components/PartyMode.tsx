@@ -3,7 +3,6 @@ import { Player, SlangWord } from '../types';
 import { SLANG_DATABASE } from '../data/slangDatabase';
 import { CartoonAvatar, AVATAR_LIST } from './CartoonAvatar';
 import { AnswerFeedbackModal } from './AnswerFeedbackModal';
-import { loadAndShowInterstitialAd } from '../services/admobService';
 import { useComponentLifecycleLogger } from '../utils/useComponentLogger';
 import { sounds } from '../utils/audio';
 import { useGame } from '../context/GameContext';
@@ -298,17 +297,12 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
     recordPartyGame(true);
     addXP(150);
 
-    // Free user logic: trigger ad, and then present Pro subscription modal
+    // Free user cooldown logic
     if (!profile.isPremium) {
       try {
         localStorage.setItem(PARTY_LAST_MATCH_KEY, String(Date.now()));
         setCooldownRemainingSeconds(PARTY_COOLDOWN_MS / 1000);
       } catch {}
-
-      // Trigger Native AdMob safely
-      loadAndShowInterstitialAd().catch((err) => {
-        console.warn('AdMob interstitial notice:', err);
-      });
     }
 
     fireConfetti({

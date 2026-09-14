@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { SLANG_DATABASE } from '../data/slangDatabase';
 import { SlangWord } from '../types';
 import { speakGerman, sounds } from '../utils/audio';
-import { loadAndShowInterstitialAd } from '../services/admobService';
 import { useComponentLifecycleLogger } from '../utils/useComponentLogger';
 import { useGame } from '../context/GameContext';
 import { useTranslation, LANGUAGES } from '../utils/translations';
@@ -119,13 +118,7 @@ export const WiederholenView: React.FC = () => {
     const newMilestone = Math.floor(newCount / 10);
     const crossedTenWordsMilestone = newMilestone > prevMilestone;
 
-    // Trigger Native AdMob ONLY when 10 cumulative words are reached
-    if (!profile.isPremium && crossedTenWordsMilestone) {
-      loadAndShowInterstitialAd().catch((err) => {
-        console.warn('AdMob interstitial notice:', err);
-      });
-    }
-
+    // Flashcard milestone reached
     fireConfetti({
       particleCount: 100,
       spread: 80,

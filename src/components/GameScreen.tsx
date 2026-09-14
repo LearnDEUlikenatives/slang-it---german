@@ -3,7 +3,7 @@ import { GameConfig, SlangWord, GameDifficulty, SlangRegion, SlangCategory, Slan
 import { SLANG_DATABASE, CATEGORY_LABELS, REGION_LABELS, RARITY_LABELS } from '../data/slangDatabase';
 import { CartoonAvatar } from './CartoonAvatar';
 import { AnswerFeedbackModal } from './AnswerFeedbackModal';
-import { showGoogleInterstitialAd, showGoogleRewardVideoAd } from '../services/admobService';
+import { showGoogleInterstitialAd, showGoogleRewardVideoAd, preloadPlayInterstitial } from '../services/admobService';
 import { useComponentLifecycleLogger } from '../utils/useComponentLogger';
 import { sounds, speakGerman } from '../utils/audio';
 import { useGame } from '../context/GameContext';
@@ -112,6 +112,7 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
   }, [preselectedSlang]);
 
   const startGameWithWord = (word: SlangWord) => {
+    preloadPlayInterstitial().catch(() => {});
     const pool = [word, ...SLANG_DATABASE.filter((w) => w.id !== word.id).sort(() => Math.random() - 0.5)];
     setQuestions(pool);
     setCurrentIndex(0);
@@ -128,6 +129,7 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
   // Start game with filtered questions
   const startGame = () => {
     sounds.playPop();
+    preloadPlayInterstitial().catch(() => {});
     let pool = [...SLANG_DATABASE];
 
     if (config.familyMode) {
