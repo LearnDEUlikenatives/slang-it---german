@@ -98,7 +98,6 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
   const [isGameOver, setIsGameOver] = useState(false);
-  const [isShowingAdLoading, setIsShowingAdLoading] = useState(false);
 
   const autoNextTimeoutRef = useRef<any>(null);
 
@@ -299,19 +298,17 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
         setCooldownRemainingSeconds(PARTY_COOLDOWN_MS / 1000);
       } catch {}
 
-      // Trigger Native AdMob
-      setIsShowingAdLoading(true);
-      try {
-        await loadAndShowInterstitialAd();
-      } catch (err) {
-        console.error('Error showing interstitial ad:', err);
-      }
-      setIsShowingAdLoading(false);
-
-      // Right after match completion, show Pro subscription offer
-      setTimeout(() => {
-        setShowPaymentModal(true);
-      }, 500);
+      // Trigger Native AdMob safely
+      loadAndShowInterstitialAd()
+        .catch((err) => {
+          console.warn('AdMob interstitial notice:', err);
+        })
+        .finally(() => {
+          // Right after match completion, show Pro subscription offer
+          setTimeout(() => {
+            setShowPaymentModal(true);
+          }, 400);
+        });
     }
 
     try {
@@ -594,11 +591,6 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
 
   return (
     <div id="active-party-game" className="max-w-2xl mx-auto py-2 sm:py-3 px-3 sm:px-5">
-      {isShowingAdLoading && (
-        <div className="fixed inset-0 bg-black z-50 flex items-center justify-center">
-          <div className="text-white text-2xl font-black font-cartoon animate-pulse">Loading Ad...</div>
-        </div>
-      )}
       {/* Main Party Scenario Comic Card with Integrated Turn Indicator */}
       <div className="cartoon-card-lg bg-white rounded-3xl p-4 sm:p-6 mb-3 sm:mb-4 relative overflow-hidden border-3 border-black shadow-[6px_6px_0px_#000000]">
         {/* Integrated Turn & Round Banner */}

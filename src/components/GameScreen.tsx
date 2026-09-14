@@ -57,9 +57,8 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [isAnswerRevealed, setIsAnswerRevealed] = useState(false);
   const [revealedHints, setRevealedHints] = useState<number>(0);
-  const [totalTimeLeft, setTotalTimeLeft] = useState(config.sessionTime);
+  const [totalTimeLeft, setTotalTimeLeft] = useState<number>(config.sessionTime);
   const [isGameOver, setIsGameOver] = useState(false);
-  const [showAdOverlay, setShowAdOverlay] = useState(false); // Add this
   const [hasClaimedDoubleXP, setHasClaimedDoubleXP] = useState(false);
   const [gameHistory, setGameHistory] = useState<Array<{ slang: SlangWord; chosen: string; isCorrect: boolean }>>([]);
   const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
@@ -293,10 +292,8 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
 
     // Trigger Native AdMob asynchronously (Zero delay / non-blocking)
     if (!profile.isPremium) {
-      setShowAdOverlay(true);
-
-      showGoogleInterstitialAd().finally(() => {
-        setShowAdOverlay(false);
+      showGoogleInterstitialAd().catch((err) => {
+        console.warn('AdMob interstitial notice:', err);
       });
     }
 
@@ -731,9 +728,6 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
           earnedXP={config.difficulty === 'hard' ? 150 : config.difficulty === 'medium' ? 100 : 75}
           onNext={handleNextQuestion}
         />
-        {showAdOverlay && (
-          <div className="fixed inset-0 z-[9999] bg-black" />
-        )}
       </div>
     </div>
   );

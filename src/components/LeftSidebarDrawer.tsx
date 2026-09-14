@@ -129,7 +129,7 @@ export const LeftSidebarDrawer: React.FC<Props> = ({
             <CartoonAvatar avatarId={profile.avatarId} size="sm" className="w-8 h-8 border-2 border-black" />
             <div>
               <span className="text-xs font-black text-black font-cartoon block leading-tight">
-                {profile.nickname || 'Slang Master'}
+                {profile.name || 'Slang Master'}
               </span>
               <span className="text-[10px] font-bold text-black/70">
                 Level {profile.level} • {profile.xp} XP

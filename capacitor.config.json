@@ -1,6 +1,6 @@
 {
-  "appId": "com.learngermanlikenatives.slangit",
-  "appName": "Slang It! German Slang",
+  "appId": "com.learngermanlikenatives.slangitgerman",
+  "appName": "Slang It - German",
   "webDir": "dist",
   "bundledWebRuntime": false,
   "backgroundColor": "#FF71CE",
@@ -15,4 +15,3 @@
     }
   }
 }
-
