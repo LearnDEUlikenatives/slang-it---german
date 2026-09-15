@@ -14,10 +14,13 @@ export const ADMOB_CONFIG = {
   APP_ID: 'ca-app-pub-4045089359333252~3927685995',
 
   // Primary Live Ad Unit ID for Play Game Over Interstitial
-  PLAY_INTERSTITIAL_AD_UNIT_ID: 'ca-app-pub-4045089359333252/8011089596',
+  PLAY_INTERSTITIAL_AD_UNIT_ID: 'ca-app-pub-4045089359333252/9675420826',
 
   // Primary Live Ad Unit ID for Party Game Over Interstitial
   PARTY_INTERSTITIAL_AD_UNIT_ID: 'ca-app-pub-4045089359333252/6749818086',
+
+  // Primary Live Ad Unit ID for Revision / Wiederholen 10-Words Interstitial
+  REVISION_INTERSTITIAL_AD_UNIT_ID: 'ca-app-pub-4045089359333252/3372223589',
 
   // Google Official Test Interstitial Ad Unit ID (guaranteed fallback delivery)
   TEST_INTERSTITIAL_AD_UNIT_ID: 'ca-app-pub-3940256099942544/1033173712',
@@ -235,6 +238,16 @@ export async function loadAndShowPartyAdOnFinish(): Promise<boolean> {
   return loadAndShowInterstitialOnDemand(
     ADMOB_CONFIG.PARTY_INTERSTITIAL_AD_UNIT_ID,
     'PartyMode'
+  );
+}
+
+/**
+ * Loads and shows the interstitial ad immediately on Revision 10-words milestone (under the black loading screen).
+ */
+export async function loadAndShowRevisionAdOnMilestone(): Promise<boolean> {
+  return loadAndShowInterstitialOnDemand(
+    ADMOB_CONFIG.REVISION_INTERSTITIAL_AD_UNIT_ID,
+    'RevisionMode'
   );
 }
 

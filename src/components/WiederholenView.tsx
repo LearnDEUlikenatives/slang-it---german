@@ -14,6 +14,7 @@ import {
   Eye,
 } from 'lucide-react';
 import { fireConfetti } from '../utils/confetti';
+import { loadAndShowRevisionAdOnMilestone } from '../services/admobService';
 
 const REVISION_WORDS_COUNT_KEY = 'slangit_revised_words_count';
 
@@ -47,6 +48,7 @@ export const WiederholenView: React.FC = () => {
   const [knownCount, setKnownCount] = useState(0);
   const [repeatCount, setRepeatCount] = useState(0);
   const [isDeckFinished, setIsDeckFinished] = useState(false);
+  const [isAdLoadingScreen, setIsAdLoadingScreen] = useState(false);
 
   useComponentLifecycleLogger('WiederholenView', {
     currentIndex,
@@ -54,6 +56,7 @@ export const WiederholenView: React.FC = () => {
     knownCount,
     repeatCount,
     isDeckFinished,
+    isAdLoadingScreen,
   });
 
   const currentCard = deck[currentIndex];
@@ -81,10 +84,29 @@ export const WiederholenView: React.FC = () => {
     speakGerman(`${currentCard.term}. ${currentCard.exampleDe}`);
   };
 
-  const handleNextCard = (known: boolean) => {
+  const handleNextCard = async (known: boolean) => {
+    let newCumulative = cumulativeRevisedCount;
+
     if (known) {
       sounds.playCorrect();
       setKnownCount((prev) => prev + 1);
+      newCumulative = cumulativeRevisedCount + 1;
+      setCumulativeRevisedCount(newCumulative);
+      try {
+        localStorage.setItem(REVISION_WORDS_COUNT_KEY, String(newCumulative));
+      } catch {}
+
+      // Trigger ad strictly after revising 10 words (clicking "Know It") on free tier
+      if (!profile.isPremium && newCumulative > 0 && newCumulative % 10 === 0) {
+        setIsAdLoadingScreen(true);
+        try {
+          await loadAndShowRevisionAdOnMilestone();
+        } catch (err) {
+          console.warn('AdMob Revision notice:', err);
+        } finally {
+          setIsAdLoadingScreen(false);
+        }
+      }
     } else {
       sounds.playWrong();
       setRepeatCount((prev) => prev + 1);
@@ -106,19 +128,7 @@ export const WiederholenView: React.FC = () => {
     addXP(xpGained);
     recordGameResult(finalKnownCount, deck.length, deck.slice(0, finalKnownCount).map((d) => d.id));
 
-    // Cumulative 10-words milestone ad check
-    const prevCount = cumulativeRevisedCount;
-    const newCount = prevCount + deck.length;
-    try {
-      localStorage.setItem(REVISION_WORDS_COUNT_KEY, String(newCount));
-    } catch {}
-    setCumulativeRevisedCount(newCount);
-
-    const prevMilestone = Math.floor(prevCount / 10);
-    const newMilestone = Math.floor(newCount / 10);
-    const crossedTenWordsMilestone = newMilestone > prevMilestone;
-
-    // Flashcard milestone reached
+    // Flashcard celebration
     fireConfetti({
       particleCount: 100,
       spread: 80,
@@ -135,6 +145,24 @@ export const WiederholenView: React.FC = () => {
     setRepeatCount(0);
     setIsDeckFinished(false);
   };
+
+  // FULL BLACK TRANSITION SCREEN WHILE REVISION AD LOADS ON 10-WORDS MILESTONE
+  if (isAdLoadingScreen) {
+    return (
+      <div
+        id="revision-ad-loading-black-screen"
+        className="fixed inset-0 bg-black z-[99999] flex flex-col items-center justify-center p-6 text-white select-none"
+      >
+        <div className="w-12 h-12 rounded-full border-4 border-white/20 border-t-[#05FFA1] animate-spin mb-4" />
+        <span className="font-cartoon font-black tracking-wider text-base uppercase text-neutral-200">
+          Loading Ad...
+        </span>
+        <span className="text-xs font-bold text-neutral-400 mt-1">
+          Gleich geht's weiter...
+        </span>
+      </div>
+    );
+  }
 
   if (isDeckFinished) {
     return (
