@@ -8,286 +8,379 @@ import { Capacitor } from '@capacitor/core';
 import { logger } from '../utils/logger';
 
 /**
- * AdMob Service for German Slang
- * Step 1: Preloaded Interstitial Ad on 'Play' Page
- * 
- * CRITICAL ARCHITECTURE:
- * - Ads are preloaded asynchronously in the background.
- * - `showInterstitial` is ONLY ever called when `isInterstitialLoaded` is TRUE.
- * - This completely prevents the blank white screen caused by calling show on an unloaded ad.
+ * AdMob Configuration for German Slang
  */
-
 export const ADMOB_CONFIG = {
-  // Application ID
+  // AdMob App ID
   APP_ID: 'ca-app-pub-4045089359333252~3927685995',
 
   // Primary Ad Unit ID for Play Game Over Interstitial
   PLAY_INTERSTITIAL_AD_UNIT_ID: 'ca-app-pub-4045089359333252/8011089596',
 
-  // Test Interstitial Ad Unit (Used in testing devices)
+  // Official Test Ad Unit for guaranteed test device delivery
   TEST_INTERSTITIAL_AD_UNIT_ID: 'ca-app-pub-3940256099942544/1033173712',
 
   // Minimum interval between ads to protect UX
   MIN_AD_INTERVAL_MS: 5000,
 };
 
-let isInitialized = false;
-let isListenersRegistered = false;
-let isPreparing = false;
-let isInterstitialLoaded = false;
-let isInterstitialShowing = false;
-let lastAdTimestamp = 0;
+export type AdState =
+  | 'UNINITIALIZED'
+  | 'INITIALIZING'
+  | 'IDLE'
+  | 'PRELOADING'
+  | 'READY'
+  | 'SHOWING'
+  | 'DISMISSED'
+  | 'FAILED';
 
 /**
- * Checks if AdMob is running in native Capacitor environment
+ * Preload-Ready Ad State Manager
+ * 
+ * Guarantees:
+ * 1. Initialized strictly AFTER component mount.
+ * 2. Uses a Promise-based queue so visibility calls ONLY execute when confirmed as 'READY'.
+ * 3. Eliminates all rendering race conditions and blank white screens.
  */
-export function isNativeAdMobAvailable(): boolean {
-  return typeof window !== 'undefined' && Boolean(Capacitor.isNativePlatform());
-}
+class AdMobStateManager {
+  private state: AdState = 'UNINITIALIZED';
+  private listenersAttached = false;
+  private lastAdTimestamp = 0;
+  private preloadDeferred: {
+    promise: Promise<boolean>;
+    resolve: (value: boolean) => void;
+  } | null = null;
+  private showDeferred: {
+    promise: Promise<boolean>;
+    resolve: (value: boolean) => void;
+  } | null = null;
 
-/**
- * Returns current ad readiness state
- */
-export function getAdMobState() {
-  return {
-    isInitialized,
-    isInterstitialLoaded,
-    isInterstitialShowing,
-    isPreparing,
-    timeSinceLastAdMs: Date.now() - lastAdTimestamp,
-  };
-}
-
-/**
- * Check if cooldown window has passed
- */
-export function canShowAd(): { allowed: boolean; reason?: string } {
-  if (isInterstitialShowing) {
-    return { allowed: false, reason: 'Interstitial is currently showing' };
-  }
-  if (!isInterstitialLoaded) {
-    return { allowed: false, reason: 'Ad is not yet loaded in memory' };
-  }
-  const now = Date.now();
-  const elapsed = now - lastAdTimestamp;
-  if (elapsed < ADMOB_CONFIG.MIN_AD_INTERVAL_MS) {
-    return {
-      allowed: false,
-      reason: `Ad cooldown active (${elapsed}ms < ${ADMOB_CONFIG.MIN_AD_INTERVAL_MS}ms)`,
-    };
-  }
-  return { allowed: true };
-}
-
-/**
- * Register global AdMob event listeners once
- */
-async function registerAdMobListeners(): Promise<void> {
-  if (isListenersRegistered || !isNativeAdMobAvailable()) return;
-
-  try {
-    // 1. Interstitial Loaded
-    await AdMob.addListener(InterstitialAdPluginEvents.Loaded, (info: AdLoadInfo) => {
-      isInterstitialLoaded = true;
-      isPreparing = false;
-      logger.setAdMobPhase('AD_READY_IN_MEMORY', info);
-      logger.admob('✅ Interstitial ad preloaded & ready in memory');
-    }).catch(() => null);
-
-    // 2. Interstitial Failed to Load
-    await AdMob.addListener(InterstitialAdPluginEvents.FailedToLoad, (err: AdMobError) => {
-      isInterstitialLoaded = false;
-      isPreparing = false;
-      logger.setAdMobPhase('IDLE', { failedToLoad: err });
-      logger.admob(`ℹ️ Interstitial ad background load notice: ${err?.message || 'No fill / loading'}`, err, 'warn');
-    }).catch(() => null);
-
-    // 3. Interstitial Showed
-    await AdMob.addListener(InterstitialAdPluginEvents.Showed, () => {
-      isInterstitialShowing = true;
-      isInterstitialLoaded = false;
-      lastAdTimestamp = Date.now();
-      logger.setAdMobPhase('SHOWING_INTERSTITIAL');
-      logger.admob('📺 Interstitial ad is now displaying');
-    }).catch(() => null);
-
-    // 4. Interstitial Dismissed
-    await AdMob.addListener(InterstitialAdPluginEvents.Dismissed, () => {
-      isInterstitialShowing = false;
-      isInterstitialLoaded = false;
-      lastAdTimestamp = Date.now();
-      logger.setAdMobPhase('IDLE', { status: 'Dismissed by user' });
-      logger.admob('🎯 Interstitial closed. Preloading next ad in background...');
-      
-      // Automatically preload the next ad for future game sessions
-      setTimeout(() => {
-        preloadPlayInterstitial();
-      }, 2500);
-    }).catch(() => null);
-
-    // 5. Interstitial Failed to Show
-    await AdMob.addListener(InterstitialAdPluginEvents.FailedToShow, (err: AdMobError) => {
-      isInterstitialShowing = false;
-      isInterstitialLoaded = false;
-      logger.setAdMobPhase('IDLE', { failedToShow: err });
-      logger.admob(`❌ Interstitial failed to show: ${err?.message || JSON.stringify(err)}`, err, 'warn');
-
-      setTimeout(() => {
-        preloadPlayInterstitial();
-      }, 2500);
-    }).catch(() => null);
-
-    isListenersRegistered = true;
-    logger.admob('AdMob event listeners registered successfully.');
-  } catch (err: any) {
-    logger.admob(`Failed to register AdMob listeners: ${err?.message || err}`, err, 'warn');
-  }
-}
-
-/**
- * Initializes AdMob SDK on startup safely.
- */
-export async function initializeAdMob(): Promise<void> {
-  if (isInitialized) {
-    return;
+  public isNative(): boolean {
+    return typeof window !== 'undefined' && Boolean(Capacitor.isNativePlatform());
   }
 
-  logger.setAdMobPhase('INITIALIZING');
+  public getState(): AdState {
+    return this.state;
+  }
 
-  try {
-    if (isNativeAdMobAvailable()) {
-      logger.admob('Native platform detected. Initializing AdMob SDK...');
-      await AdMob.initialize({
-        initializeForTesting: true,
-      }).catch((initErr: any) => {
-        logger.admob(`AdMob.initialize notice: ${initErr?.message || initErr}`, initErr, 'warn');
-      });
+  public isReady(): boolean {
+    return this.state === 'READY';
+  }
 
-      isInitialized = true;
-      logger.setAdMobPhase('IDLE', { status: 'Native AdMob Initialized' });
-      logger.admob('✅ AdMob Native SDK initialized.');
+  private setState(newState: AdState, metadata?: any) {
+    const prev = this.state;
+    this.state = newState;
+    logger.setAdMobPhase(`STATE_${newState}`, metadata);
+    logger.admob(`[AdMobStateManager] State transition: ${prev} ➔ ${newState}`, metadata);
+  }
 
-      // Setup listeners & initiate initial background preload
-      await registerAdMobListeners();
-      preloadPlayInterstitial();
+  /**
+   * Initializes the AdMob SDK strictly after component mount
+   */
+  public async initialize(): Promise<void> {
+    if (this.state !== 'UNINITIALIZED') {
       return;
     }
 
-    isInitialized = true;
-    logger.setAdMobPhase('IDLE', { status: 'Web Simulated Mode' });
-    logger.admob('ℹ️ AdMob initialized in Web Simulation mode.');
-  } catch (error: any) {
-    logger.setAdMobPhase('INIT_FAILED', { error: error?.message || error });
-    logger.admob(`AdMob init notice: ${error?.message || error}`, error, 'warn');
-  }
-}
+    this.setState('INITIALIZING');
 
-/**
- * Preload Play Interstitial Ad in background.
- * Call this whenever a game starts or when app mounts.
- */
-export async function preloadPlayInterstitial(isTesting = false): Promise<void> {
-  if (!isNativeAdMobAvailable() || isPreparing || isInterstitialLoaded || isInterstitialShowing) {
-    return;
-  }
+    if (!this.isNative()) {
+      this.setState('IDLE', { mode: 'Web Simulation' });
+      logger.admob('ℹ️ AdMob initialized in Web Simulation mode.');
+      return;
+    }
 
-  isPreparing = true;
-  logger.setAdMobPhase('PRELOADING_AD');
-  logger.admob(`🔄 Preloading interstitial ad in background (${ADMOB_CONFIG.PLAY_INTERSTITIAL_AD_UNIT_ID})...`);
-
-  try {
-    await AdMob.prepareInterstitial({
-      adId: ADMOB_CONFIG.PLAY_INTERSTITIAL_AD_UNIT_ID,
-      isTesting,
-    }).catch(async (primaryErr: any) => {
-      logger.admob(`Primary ad unit preload failed (${primaryErr?.message || primaryErr}). Trying official test unit fallback...`, null, 'warn');
-      // Fallback to test unit if primary unit is pending approval
-      await AdMob.prepareInterstitial({
-        adId: ADMOB_CONFIG.TEST_INTERSTITIAL_AD_UNIT_ID,
-        isTesting: true,
-      }).catch((fallbackErr: any) => {
-        logger.admob(`Fallback test unit prepare notice: ${fallbackErr?.message || fallbackErr}`, fallbackErr, 'warn');
-        isPreparing = false;
-        isInterstitialLoaded = false;
+    try {
+      logger.admob('Initializing Native AdMob SDK...');
+      await AdMob.initialize({
+        initializeForTesting: true,
+      }).catch((initErr) => {
+        logger.admob(`AdMob.initialize notice: ${initErr?.message || initErr}`, initErr, 'warn');
       });
+
+      this.setState('IDLE', { mode: 'Native SDK Initialized' });
+      await this.attachListeners();
+
+      // Initiate initial background preload
+      this.preload();
+    } catch (err: any) {
+      this.setState('FAILED', { error: err?.message || err });
+      logger.admob(`AdMob initialization failed: ${err?.message || err}`, err, 'warn');
+    }
+  }
+
+  /**
+   * Attaches AdMob lifecycle event listeners
+   */
+  private async attachListeners(): Promise<void> {
+    if (this.listenersAttached || !this.isNative()) return;
+
+    try {
+      // 1. Interstitial Confirmed Loaded
+      await AdMob.addListener(InterstitialAdPluginEvents.Loaded, (info: AdLoadInfo) => {
+        this.setState('READY', info);
+        if (this.preloadDeferred) {
+          this.preloadDeferred.resolve(true);
+          this.preloadDeferred = null;
+        }
+      }).catch(() => null);
+
+      // 2. Interstitial Failed to Load
+      await AdMob.addListener(InterstitialAdPluginEvents.FailedToLoad, (err: AdMobError) => {
+        this.setState('FAILED', err);
+        if (this.preloadDeferred) {
+          this.preloadDeferred.resolve(false);
+          this.preloadDeferred = null;
+        }
+        // Auto-rearm after delay
+        setTimeout(() => {
+          if (this.state === 'FAILED' || this.state === 'IDLE') {
+            this.preload();
+          }
+        }, 5000);
+      }).catch(() => null);
+
+      // 3. Interstitial Showed
+      await AdMob.addListener(InterstitialAdPluginEvents.Showed, () => {
+        this.setState('SHOWING');
+        this.lastAdTimestamp = Date.now();
+      }).catch(() => null);
+
+      // 4. Interstitial Dismissed by User
+      await AdMob.addListener(InterstitialAdPluginEvents.Dismissed, () => {
+        this.setState('DISMISSED');
+        this.lastAdTimestamp = Date.now();
+        if (this.showDeferred) {
+          this.showDeferred.resolve(true);
+          this.showDeferred = null;
+        }
+        // Auto-preload the next ad in the background
+        setTimeout(() => {
+          this.setState('IDLE');
+          this.preload();
+        }, 2000);
+      }).catch(() => null);
+
+      // 5. Interstitial Failed to Show
+      await AdMob.addListener(InterstitialAdPluginEvents.FailedToShow, (err: AdMobError) => {
+        this.setState('FAILED', err);
+        if (this.showDeferred) {
+          this.showDeferred.resolve(false);
+          this.showDeferred = null;
+        }
+        setTimeout(() => {
+          this.setState('IDLE');
+          this.preload();
+        }, 2000);
+      }).catch(() => null);
+
+      this.listenersAttached = true;
+      logger.admob('✅ AdMob lifecycle listeners attached to state manager.');
+    } catch (err) {
+      logger.admob('Failed attaching AdMob listeners', err, 'warn');
+    }
+  }
+
+  /**
+   * Preloads the Interstitial Ad in background.
+   * Returns a Promise that resolves `true` when 'READY' or `false` if failed.
+   */
+  public async preload(forceTest = false): Promise<boolean> {
+    if (!this.isNative()) {
+      return true;
+    }
+
+    if (this.state === 'READY') {
+      return true;
+    }
+
+    if (this.state === 'PRELOADING' && this.preloadDeferred) {
+      return this.preloadDeferred.promise;
+    }
+
+    if (this.state === 'SHOWING') {
+      return false;
+    }
+
+    this.setState('PRELOADING');
+
+    let resolvePromise: (value: boolean) => void = () => {};
+    const promise = new Promise<boolean>((resolve) => {
+      resolvePromise = resolve;
     });
-  } catch (err: any) {
-    isPreparing = false;
-    isInterstitialLoaded = false;
-    logger.admob(`Preload exception: ${err?.message || err}`, err, 'warn');
+
+    this.preloadDeferred = { promise, resolve: resolvePromise };
+
+    // Timeout guard so preload promise never hangs
+    const timer = setTimeout(() => {
+      if (this.preloadDeferred?.promise === promise) {
+        logger.admob('Preload promise timeout guard triggered (8000ms)');
+        this.setState('IDLE', { reason: 'Preload timeout' });
+        this.preloadDeferred.resolve(false);
+        this.preloadDeferred = null;
+      }
+    }, 8000);
+
+    promise.finally(() => {
+      clearTimeout(timer);
+    });
+
+    try {
+      logger.admob(`[Preload-Ready] Preparing ad unit: ${ADMOB_CONFIG.PLAY_INTERSTITIAL_AD_UNIT_ID}...`);
+      await AdMob.prepareInterstitial({
+        adId: ADMOB_CONFIG.PLAY_INTERSTITIAL_AD_UNIT_ID,
+        isTesting: forceTest,
+      }).catch(async (primaryErr) => {
+        logger.admob(`Primary ad unit prepare failed (${primaryErr?.message || primaryErr}). Trying official test fallback unit...`, null, 'warn');
+        await AdMob.prepareInterstitial({
+          adId: ADMOB_CONFIG.TEST_INTERSTITIAL_AD_UNIT_ID,
+          isTesting: true,
+        }).catch((fallbackErr) => {
+          logger.admob(`Fallback test unit prepare failed: ${fallbackErr?.message || fallbackErr}`, fallbackErr, 'warn');
+          if (this.preloadDeferred?.promise === promise) {
+            this.setState('FAILED', { error: fallbackErr });
+            this.preloadDeferred.resolve(false);
+            this.preloadDeferred = null;
+          }
+        });
+      });
+    } catch (err: any) {
+      if (this.preloadDeferred?.promise === promise) {
+        this.setState('FAILED', { error: err?.message || err });
+        this.preloadDeferred.resolve(false);
+        this.preloadDeferred = null;
+      }
+    }
+
+    return promise;
+  }
+
+  /**
+   * Executes Ad visibility call ONLY once confirmed 'READY'.
+   * If currently preloading, it awaits the queued preload promise with a max grace window (1500ms).
+   * Never calls show on an unready ad to prevent white-screen crashes.
+   */
+  public async showPlayGameOverAd(): Promise<boolean> {
+    logger.admob('🎮 [Preload-Ready Queue] showPlayGameOverAd called');
+
+    if (!this.isNative()) {
+      logger.admob('Web simulated ad closed.');
+      this.lastAdTimestamp = Date.now();
+      return true;
+    }
+
+    // Cooldown check
+    const elapsed = Date.now() - this.lastAdTimestamp;
+    if (elapsed < ADMOB_CONFIG.MIN_AD_INTERVAL_MS) {
+      logger.admob(`Ad cooldown active (${elapsed}ms < ${ADMOB_CONFIG.MIN_AD_INTERVAL_MS}ms). Skipping ad.`);
+      return false;
+    }
+
+    // 1. If not yet ready, check if it's currently preloading
+    if (this.state !== 'READY') {
+      if (this.state === 'PRELOADING' && this.preloadDeferred) {
+        logger.admob('⏳ Ad is currently preloading. Waiting for confirmed READY state (max 1500ms grace)...');
+        const timeoutPromise = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 1500));
+        const ready = await Promise.race([this.preloadDeferred.promise, timeoutPromise]);
+
+        if (!ready || !this.isReady()) {
+          logger.admob('⚠️ Ad was not confirmed READY in time. Safely skipping display to prevent blank white screen.');
+          return false;
+        }
+      } else {
+        logger.admob('⚠️ Ad is not in READY state. Triggering background preload for next round & skipping to prevent white screen.');
+        this.preload();
+        return false;
+      }
+    }
+
+    // 2. State is strictly confirmed READY -> Safe to display
+    logger.admob('🎯 State is confirmed READY. Safely presenting interstitial ad.');
+
+    let resolveShow: (value: boolean) => void = () => {};
+    const showPromise = new Promise<boolean>((resolve) => {
+      resolveShow = resolve;
+    });
+    this.showDeferred = { promise: showPromise, resolve: resolveShow };
+
+    // Safety timeout in case ad activity does not dispatch dismissed event
+    const showSafetyTimer = setTimeout(() => {
+      if (this.showDeferred?.promise === showPromise) {
+        logger.admob('⚠️ Show promise safety timeout triggered (10000ms)');
+        this.setState('IDLE', { reason: 'Show safety timeout' });
+        this.showDeferred.resolve(false);
+        this.showDeferred = null;
+        this.preload();
+      }
+    }, 10000);
+
+    showPromise.finally(() => {
+      clearTimeout(showSafetyTimer);
+    });
+
+    try {
+      this.setState('SHOWING');
+      await AdMob.showInterstitial().catch((showErr) => {
+        logger.admob(`AdMob.showInterstitial rejected: ${showErr?.message || showErr}`, showErr, 'warn');
+        if (this.showDeferred?.promise === showPromise) {
+          this.setState('FAILED', { error: showErr });
+          this.showDeferred.resolve(false);
+          this.showDeferred = null;
+          this.preload();
+        }
+      });
+      return await showPromise;
+    } catch (err: any) {
+      logger.admob(`Exception showing interstitial: ${err?.message || err}`, err, 'warn');
+      this.setState('FAILED', { error: err });
+      if (this.showDeferred?.promise === showPromise) {
+        this.showDeferred.resolve(false);
+        this.showDeferred = null;
+      }
+      this.preload();
+      return false;
+    }
   }
 }
 
+// Singleton state manager instance
+export const adMobManager = new AdMobStateManager();
+
 /**
- * Displays the Interstitial Ad right after finishing the 'Play' game.
- * ONLY shows if the ad is already loaded in memory to completely avoid blank white screens.
+ * Public helper functions for React components
  */
+export function isNativeAdMobAvailable(): boolean {
+  return adMobManager.isNative();
+}
+
+export function getAdMobState(): AdState {
+  return adMobManager.getState();
+}
+
+export async function initializeAdMob(): Promise<void> {
+  return adMobManager.initialize();
+}
+
+export async function preloadPlayInterstitial(forceTest = false): Promise<boolean> {
+  return adMobManager.preload(forceTest);
+}
+
 export async function showPlayGameOverAd(): Promise<boolean> {
-  logger.admob('🎮 showPlayGameOverAd requested');
-
-  if (!isNativeAdMobAvailable()) {
-    logger.admob('Play ad: Web simulation mode (non-native). Returning simulated success.');
-    lastAdTimestamp = Date.now();
-    return true;
-  }
-
-  // If ad is not ready yet, DO NOT OPEN AD ACTIVITY (avoids blank white screen)
-  if (!isInterstitialLoaded) {
-    logger.admob('⚠️ Ad is not loaded in memory yet. Skipping display to prevent blank screen, preloading now for next time.');
-    preloadPlayInterstitial();
-    return false;
-  }
-
-  const check = canShowAd();
-  if (!check.allowed) {
-    logger.admob(`Ad skipped: ${check.reason}`);
-    return false;
-  }
-
-  try {
-    logger.setAdMobPhase('CALLING_SHOW_INTERSTITIAL');
-    logger.admob('Calling AdMob.showInterstitial()...');
-    await AdMob.showInterstitial();
-    return true;
-  } catch (err: any) {
-    isInterstitialShowing = false;
-    isInterstitialLoaded = false;
-    logger.setAdMobPhase('IDLE', { error: err?.message || err });
-    logger.admob(`showInterstitial exception: ${err?.message || err}`, err, 'warn');
-    preloadPlayInterstitial();
-    return false;
-  }
+  return adMobManager.showPlayGameOverAd();
 }
 
-/**
- * Standard alias for the play game over ad
- */
 export async function showGoogleInterstitialAd(_isTesting = true): Promise<boolean> {
-  return showPlayGameOverAd();
+  return adMobManager.showPlayGameOverAd();
 }
 
-/**
- * General load and show interstitial helper (used for testing or diagnostics)
- */
 export async function loadAndShowInterstitialAd(_isTesting = true): Promise<boolean> {
-  if (!isInterstitialLoaded) {
-    await preloadPlayInterstitial();
-    // Give it a brief 1.5s check
-    await new Promise((r) => setTimeout(r, 1500));
-  }
-  return showPlayGameOverAd();
+  return adMobManager.showPlayGameOverAd();
 }
 
-/**
- * Preload helper
- */
 export async function preloadRewardVideoAd(_isTesting = true): Promise<void> {
-  // Kept clean for later step
+  // Kept clean for future steps
 }
 
-/**
- * Rewarded Video Ad helper (direct reward for clean testing)
- */
 export async function showGoogleRewardVideoAd(
   onRewarded: () => void,
   _isTesting = true
