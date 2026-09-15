@@ -3,7 +3,7 @@ import { GameConfig, SlangWord, GameDifficulty, SlangRegion, SlangCategory, Slan
 import { SLANG_DATABASE, CATEGORY_LABELS, REGION_LABELS, RARITY_LABELS } from '../data/slangDatabase';
 import { CartoonAvatar } from './CartoonAvatar';
 import { AnswerFeedbackModal } from './AnswerFeedbackModal';
-import { showGoogleInterstitialAd, showGoogleRewardVideoAd, preloadPlayInterstitial } from '../services/admobService';
+import { loadAndShowAdOnGameFinish, showGoogleRewardVideoAd } from '../services/admobService';
 import { useComponentLifecycleLogger } from '../utils/useComponentLogger';
 import { sounds, speakGerman } from '../utils/audio';
 import { useGame } from '../context/GameContext';
@@ -60,6 +60,7 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
   const [revealedHints, setRevealedHints] = useState<number>(0);
   const [totalTimeLeft, setTotalTimeLeft] = useState<number>(config.sessionTime);
   const [isGameOver, setIsGameOver] = useState(false);
+  const [isAdLoadingScreen, setIsAdLoadingScreen] = useState(false);
   const [hasClaimedDoubleXP, setHasClaimedDoubleXP] = useState(false);
   const [gameHistory, setGameHistory] = useState<Array<{ slang: SlangWord; chosen: string; isCorrect: boolean }>>([]);
   const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
@@ -70,6 +71,7 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
     score,
     strikes,
     isGameOver,
+    isAdLoadingScreen,
   });
 
   // Timer Refs
@@ -112,7 +114,6 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
   }, [preselectedSlang]);
 
   const startGameWithWord = (word: SlangWord) => {
-    preloadPlayInterstitial().catch(() => {});
     const pool = [word, ...SLANG_DATABASE.filter((w) => w.id !== word.id).sort(() => Math.random() - 0.5)];
     setQuestions(pool);
     setCurrentIndex(0);
@@ -129,7 +130,6 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
   // Start game with filtered questions
   const startGame = () => {
     sounds.playPop();
-    preloadPlayInterstitial().catch(() => {});
     let pool = [...SLANG_DATABASE];
 
     if (config.familyMode) {
@@ -288,9 +288,10 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
     }
   };
 
-  const finishGame = () => {
-    clearInterval(timerRef.current);
-    setIsGameOver(true);
+  const finishGame = async () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (autoNextTimeoutRef.current) clearTimeout(autoNextTimeoutRef.current);
+
     const correctCount = gameHistory.filter((h) => h.isCorrect).length;
     const learnedIds = gameHistory.filter((h) => h.isCorrect).map((h) => h.slang.id);
     
@@ -299,12 +300,19 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
     addXP(xpGained);
     recordGameResult(correctCount, gameHistory.length || 1, learnedIds);
 
-    // Trigger Native AdMob asynchronously (Zero delay / non-blocking)
+    // Free user: Transition to black screen while ad loads immediately on demand
     if (!profile.isPremium) {
-      showGoogleInterstitialAd().catch((err) => {
-        console.warn('AdMob interstitial notice:', err);
-      });
+      setIsAdLoadingScreen(true);
+      try {
+        await loadAndShowAdOnGameFinish();
+      } catch (err) {
+        console.warn('AdMob notice:', err);
+      } finally {
+        setIsAdLoadingScreen(false);
+      }
     }
+
+    setIsGameOver(true);
 
     if (correctCount >= 3) {
       sounds.playLevelUp();
@@ -332,6 +340,21 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
   };
 
   const currentQ = questions[currentIndex];
+
+  // 0. FULL BLACK TRANSITION SCREEN WHILE AD LOADS ON FINISH
+  if (isAdLoadingScreen) {
+    return (
+      <div
+        id="ad-loading-black-screen"
+        className="fixed inset-0 bg-black z-[99999] flex flex-col items-center justify-center p-6 text-white select-none"
+      >
+        <div className="w-12 h-12 rounded-full border-4 border-white/20 border-t-[#05FFA1] animate-spin mb-4" />
+        <span className="font-cartoon font-black tracking-wider text-sm uppercase text-neutral-300">
+          Loading...
+        </span>
+      </div>
+    );
+  }
 
   // 1. CONFIGURATION VIEW
   if (isConfiguring) {
