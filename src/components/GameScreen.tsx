@@ -310,6 +310,8 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
       } finally {
         setIsAdLoadingScreen(false);
       }
+      // Pop up Pro Upgrade modal right after the ad finishes playing
+      setShowPaymentModal(true);
     }
 
     setIsGameOver(true);
