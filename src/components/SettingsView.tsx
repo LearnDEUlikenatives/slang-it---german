@@ -77,7 +77,7 @@ export const SettingsView: React.FC = () => {
     logger.lifecycle('Manual test ad triggered from Settings Diagnostics');
 
     try {
-      const result = await loadAndShowInterstitialAd(true);
+      const result = await loadAndShowInterstitialAd();
       setTestAdResult(result ? '✅ Interstitial ad completed successfully' : '⚠️ Interstitial notice / closed');
     } catch (err: any) {
       setTestAdResult(`Notice: ${err?.message || err}`);
