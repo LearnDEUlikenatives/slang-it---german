@@ -9,6 +9,7 @@ import { useGame } from '../context/GameContext';
 import { useTranslation } from '../utils/translations';
 import { Play, RotateCcw, Plus, Trash2, Crown, Sparkles, Lock, Clock, Zap } from 'lucide-react';
 import { fireConfetti } from '../utils/confetti';
+import { loadAndShowPartyAdOnFinish } from '../services/admobService';
 
 const PARTY_COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 Hours Cooldown for Free Users
 const PARTY_LAST_MATCH_KEY = 'slangit_party_last_match_time';
@@ -98,6 +99,7 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
   const [isGameOver, setIsGameOver] = useState(false);
+  const [isAdLoadingScreen, setIsAdLoadingScreen] = useState(false);
 
   useComponentLifecycleLogger('PartyMode', {
     isLobby,
@@ -105,6 +107,7 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
     currentRound,
     activePlayerTurnIndex,
     isGameOver,
+    isAdLoadingScreen,
   });
 
   const autoNextTimeoutRef = useRef<any>(null);
@@ -292,18 +295,28 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
 
   const endPartyGame = async () => {
     if (autoNextTimeoutRef.current) clearTimeout(autoNextTimeoutRef.current);
-    setIsGameOver(true);
-    sounds.playLevelUp();
     recordPartyGame(true);
     addXP(150);
 
-    // Free user cooldown logic
+    // Free user: Trigger on-demand Party ad under black loading screen
     if (!profile.isPremium) {
       try {
         localStorage.setItem(PARTY_LAST_MATCH_KEY, String(Date.now()));
         setCooldownRemainingSeconds(PARTY_COOLDOWN_MS / 1000);
       } catch {}
+
+      setIsAdLoadingScreen(true);
+      try {
+        await loadAndShowPartyAdOnFinish();
+      } catch (err) {
+        console.warn('AdMob Party notice:', err);
+      } finally {
+        setIsAdLoadingScreen(false);
+      }
     }
+
+    setIsGameOver(true);
+    sounds.playLevelUp();
 
     fireConfetti({
       particleCount: 150,
@@ -315,6 +328,24 @@ export const PartyMode: React.FC<PartyProps> = ({ onBackToMenu, registerBackHand
   const currentQ = questions[currentRound];
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
   const activeTurnPlayer = players[activePlayerTurnIndex];
+
+  // 0. FULL BLACK TRANSITION SCREEN WHILE PARTY AD LOADS ON FINISH
+  if (isAdLoadingScreen) {
+    return (
+      <div
+        id="party-ad-loading-black-screen"
+        className="fixed inset-0 bg-black z-[99999] flex flex-col items-center justify-center p-6 text-white select-none"
+      >
+        <div className="w-12 h-12 rounded-full border-4 border-white/20 border-t-[#05FFA1] animate-spin mb-4" />
+        <span className="font-cartoon font-black tracking-wider text-base uppercase text-neutral-200">
+          Loading Ad...
+        </span>
+        <span className="text-xs font-bold text-neutral-400 mt-1">
+          Gleich geht's weiter...
+        </span>
+      </div>
+    );
+  }
 
   // 1. LOBBY SETUP VIEW
   if (isLobby) {
