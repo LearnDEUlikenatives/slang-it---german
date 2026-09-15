@@ -7,7 +7,7 @@ import { Capacitor } from '@capacitor/core';
 import { logger } from '../utils/logger';
 
 /**
- * Production AdMob Configuration for German Slang
+ * AdMob Configuration for German Slang
  */
 export const ADMOB_CONFIG = {
   // AdMob App ID
@@ -15,6 +15,9 @@ export const ADMOB_CONFIG = {
 
   // Primary Live Ad Unit ID for Play Game Over Interstitial
   PLAY_INTERSTITIAL_AD_UNIT_ID: 'ca-app-pub-4045089359333252/8011089596',
+
+  // Google Official Test Interstitial Ad Unit ID (guaranteed fallback delivery)
+  TEST_INTERSTITIAL_AD_UNIT_ID: 'ca-app-pub-3940256099942544/1033173712',
 
   // Minimum interval between ads to protect UX
   MIN_AD_INTERVAL_MS: 3000,
@@ -32,10 +35,7 @@ export function isNativeAdMobAvailable(): boolean {
 }
 
 /**
- * Initializes AdMob SDK on startup safely.
- * Strict rules:
- * - NO pre-loading of any ads on startup or mount.
- * - initializeForTesting: false (enables real AdMob ads for production unit).
+ * Initializes AdMob SDK on startup safely without pre-loading any ads.
  */
 export async function initializeAdMob(): Promise<void> {
   if (isInitialized) {
@@ -46,7 +46,7 @@ export async function initializeAdMob(): Promise<void> {
 
   try {
     if (isNativeAdMobAvailable()) {
-      logger.admob('Native platform detected. Initializing AdMob SDK with live production ad unit...');
+      logger.admob('Native platform detected. Initializing AdMob SDK (Passive Mode - Zero preloads)...');
       await AdMob.initialize({
         initializeForTesting: false,
       }).catch((initErr) => {
@@ -54,8 +54,8 @@ export async function initializeAdMob(): Promise<void> {
       });
 
       isInitialized = true;
-      logger.setAdMobPhase('IDLE', { status: 'Native AdMob Initialized (Live Mode)' });
-      logger.admob('✅ AdMob Native SDK initialized successfully in Live Production Mode. Zero preloads.');
+      logger.setAdMobPhase('IDLE', { status: 'Native AdMob Initialized' });
+      logger.admob('✅ AdMob Native SDK initialized successfully. Strictly on-demand mode.');
       return;
     }
 
@@ -69,16 +69,16 @@ export async function initializeAdMob(): Promise<void> {
 }
 
 /**
- * Loads and shows the interstitial ad immediately on game finish (under the black screen overlay).
+ * Loads and shows the interstitial ad immediately on game finish (under the black loading screen).
  * 
  * Flow:
- * 1. Black screen is displayed in the UI.
- * 2. Ad is requested and prepared on-demand strictly for your live ad unit.
+ * 1. Black loading screen is displayed in the UI ("Loading Ad...").
+ * 2. Ad is requested and prepared on-demand.
  * 3. Once loaded, showInterstitial is called immediately.
- * 4. Resolves when the user dismisses the ad (or on fail/timeout), so the UI can safely remove the black screen.
+ * 4. Resolves when the user dismisses the ad (or on fail/timeout), so the UI smoothly reveals results.
  */
 export async function loadAndShowAdOnGameFinish(): Promise<boolean> {
-  logger.admob(`🎮 [On-Demand Ad] Requesting live ad unit (${ADMOB_CONFIG.PLAY_INTERSTITIAL_AD_UNIT_ID}) under black screen`);
+  logger.admob('🎮 [On-Demand Ad] loadAndShowAdOnGameFinish triggered under black loading screen');
 
   if (isAdActive) {
     logger.admob('Ad already active. Skipping duplicate call.');
@@ -88,7 +88,7 @@ export async function loadAndShowAdOnGameFinish(): Promise<boolean> {
   // Web / Dev simulation
   if (!isNativeAdMobAvailable()) {
     logger.admob('Web simulated ad load under black screen...');
-    await new Promise((r) => setTimeout(r, 600));
+    await new Promise((r) => setTimeout(r, 700));
     lastAdTimestamp = Date.now();
     return true;
   }
@@ -107,15 +107,15 @@ export async function loadAndShowAdOnGameFinish(): Promise<boolean> {
     let resolved = false;
     let dismissedListener: any = null;
     let failedListener: any = null;
-    let safetyTimer: any = null;
+    let loadTimer: any = null;
 
     const cleanup = (reason: string, success: boolean) => {
       if (resolved) return;
       resolved = true;
 
-      if (safetyTimer) {
-        clearTimeout(safetyTimer);
-        safetyTimer = null;
+      if (loadTimer) {
+        clearTimeout(loadTimer);
+        loadTimer = null;
       }
 
       isAdActive = false;
@@ -137,19 +137,19 @@ export async function loadAndShowAdOnGameFinish(): Promise<boolean> {
       resolve(success);
     };
 
-    // 6-second max safety timeout guard: Never leave the user stuck on the black screen
-    safetyTimer = setTimeout(() => {
-      logger.admob('⚠️ [On-Demand Ad] Safety timeout reached. Resuming app seamlessly.');
-      cleanup('SAFETY_TIMEOUT', false);
-    }, 6000);
+    // 8-second safety timeout guard for the LOAD phase: Never leave user stuck if network is down
+    loadTimer = setTimeout(() => {
+      logger.admob('⚠️ [On-Demand Ad] 8s Load safety timeout reached. Resuming app.');
+      cleanup('LOAD_TIMEOUT', false);
+    }, 8000);
 
     (async () => {
       try {
-        // Register listeners for dismissal / failure
+        // Register listeners for dismissal and failure to show
         dismissedListener = await AdMob.addListener(
           InterstitialAdPluginEvents.Dismissed,
           () => {
-            logger.admob('🎯 Live Interstitial ad dismissed by user.');
+            logger.admob('🎯 Interstitial ad dismissed by user.');
             cleanup('DISMISSED_BY_USER', true);
           }
         ).catch(() => null);
@@ -162,17 +162,46 @@ export async function loadAndShowAdOnGameFinish(): Promise<boolean> {
           }
         ).catch(() => null);
 
-        // Step 1: Prepare the Real Live Ad Unit on-demand (No test mode)
-        logger.admob(`Preparing live ad unit on demand: ${ADMOB_CONFIG.PLAY_INTERSTITIAL_AD_UNIT_ID}...`);
-        await AdMob.prepareInterstitial({
-          adId: ADMOB_CONFIG.PLAY_INTERSTITIAL_AD_UNIT_ID,
-          isTesting: false,
-        });
-        logger.admob('✅ Live Ad Unit prepared successfully in RAM.');
+        // Step 1: Prepare the Ad Unit on-demand (Try Live Unit first, fallback to Test Unit if no fill)
+        logger.admob(`Preparing Ad Unit on-demand: ${ADMOB_CONFIG.PLAY_INTERSTITIAL_AD_UNIT_ID}...`);
+        let prepared = false;
 
-        // Step 2: Show the Ad
+        try {
+          await AdMob.prepareInterstitial({
+            adId: ADMOB_CONFIG.PLAY_INTERSTITIAL_AD_UNIT_ID,
+            isTesting: false,
+          });
+          logger.admob('✅ Live Ad Unit prepared successfully in RAM.');
+          prepared = true;
+        } catch (liveErr: any) {
+          logger.admob(`Live ad unit not ready or unfulfilled (${liveErr?.message || liveErr}). Trying fallback ad unit...`, liveErr, 'warn');
+          try {
+            await AdMob.prepareInterstitial({
+              adId: ADMOB_CONFIG.TEST_INTERSTITIAL_AD_UNIT_ID,
+              isTesting: true,
+            });
+            logger.admob('✅ Fallback ad unit prepared successfully.');
+            prepared = true;
+          } catch (fallbackErr: any) {
+            logger.admob(`Fallback ad prepare also failed: ${fallbackErr?.message || fallbackErr}`, fallbackErr, 'warn');
+          }
+        }
+
+        if (!prepared) {
+          logger.admob('⚠️ All ad prepare attempts failed. Resuming game.');
+          cleanup('PREPARE_FAILED', false);
+          return;
+        }
+
+        // Ad is prepared! Clear the load timeout since ad is ready to show
+        if (loadTimer) {
+          clearTimeout(loadTimer);
+          loadTimer = null;
+        }
+
+        // Step 2: Show the Ad immediately!
         logger.setAdMobPhase('SHOWING_INTERSTITIAL');
-        logger.admob('Calling AdMob.showInterstitial()...');
+        logger.admob('Ad prepared! Calling AdMob.showInterstitial()...');
         await AdMob.showInterstitial().catch((showErr) => {
           logger.admob(`AdMob.showInterstitial rejected: ${showErr?.message || showErr}`, showErr, 'warn');
           cleanup('SHOW_REJECTED', false);

@@ -349,8 +349,11 @@ export const GameScreen: React.FC<Props> = ({ onBackToMenu, preselectedSlang, re
         className="fixed inset-0 bg-black z-[99999] flex flex-col items-center justify-center p-6 text-white select-none"
       >
         <div className="w-12 h-12 rounded-full border-4 border-white/20 border-t-[#05FFA1] animate-spin mb-4" />
-        <span className="font-cartoon font-black tracking-wider text-sm uppercase text-neutral-300">
-          Loading...
+        <span className="font-cartoon font-black tracking-wider text-base uppercase text-neutral-200">
+          Loading Ad...
+        </span>
+        <span className="text-xs font-bold text-neutral-400 mt-1">
+          Gleich geht's weiter...
         </span>
       </div>
     );
